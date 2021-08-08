@@ -252,6 +252,16 @@ int ResolveDependencies(const State* state, Position des[AGENT_COUNT],
 
 void TickFlames(Board* board)
 {
+    if(board->flames.count == 0)
+    {
+        return;
+    }
+
+    if(board->currentFlameTime == -1)
+    {
+        throw std::runtime_error("TickFlames only supports optimized flame queues.");
+    }
+
     board->currentFlameTime--;
     board->flames[0].timeLeft--;
     if(board->flames[0].timeLeft <= 0)
@@ -735,6 +745,11 @@ bool CompareTimeLeft(const Flame& lhs, const Flame& rhs)
 
 int OptimizeFlameQueue(Board& board)
 {
+    if(board.currentFlameTime != -1)
+    {
+        return board.currentFlameTime;
+    }
+
     // sort flames
     Flame flames[board.flames.count];
     board.flames.CopyTo(flames);

@@ -196,6 +196,7 @@ void StateFromJSON(State& state, const std::string& json, GameMode gameMode)
     // set flames
     const nlohmann::json& pyFlames = pyState["flames"];
     state.flames.count = 0;
+    state.currentFlameTime = -1;
     for(uint i = 0; i < pyFlames.size(); i++)
     {
         Flame flame;
@@ -293,6 +294,7 @@ void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
 
     obs.bombs.count = 0;
     obs.flames.count = 0;
+    obs.currentFlameTime = -1;
     const nlohmann::json& pyBoard = pyState["board"];
     for(int y = 0; y < BOARD_SIZE; y++)
     {

@@ -123,19 +123,26 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
 
         // and flames
         observation.flames.count = 0;
+        int cumulativeFlameTime = 0;
         for(int i = 0; i < state.flames.count; i++)
         {
             Flame f = state.flames[i];
+            cumulativeFlameTime += f.timeLeft;
+
+            // to abs flame time
+            f.timeLeft = cumulativeFlameTime;
 
             if(InViewRange(f.position, info.x, info.y, obsParams.agentViewSize))
             {
                 observation.flames.AddElem(f);
             }
         }
+        // we now have unoptimized flames
+        observation.currentFlameTime = -1;
     }
     else
     {
-        // full view on the arena
+        // full view on the arena (including optimized flames)
         observation.CopyFrom(state);
 
         if(!obsParams.exposePowerUps)

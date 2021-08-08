@@ -272,8 +272,8 @@ void CheckTerminalState(State& state);
 bool CompareTimeLeft(const Flame& lhs, const Flame& rhs);
 
 /**
- * @brief OptimizeFlameQueue Optimizes (ordering + board lookup ids) an
- * potentionally unordered flame queue for faster step processing.
+ * @brief OptimizeFlameQueue Optimizes (ordering + additive flame times) a
+ * flame queue with absolute frame times for faster step processing.
  * @param board The board used to save flame ids
  * @param flames The flame queue which should be optimized
  * @return the remaining timeLeft
