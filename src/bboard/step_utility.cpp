@@ -667,6 +667,8 @@ int GetWinningTeam(const State& state)
 
 void CheckTerminalState(State& state)
 {
+    state.finished = false;
+    state.isDraw = false;
     state.winningAgent = -1;
     state.winningTeam = 0;
 
