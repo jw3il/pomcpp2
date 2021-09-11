@@ -270,7 +270,7 @@ TEST_CASE("Merge Observations", "[observation]")
 
                 newObs.Merge(obs, params, trackAgents, trackBombs, &itemAge);
                 REQUIRE_ITEM_IF(newObs.items[1][BOARD_SIZE - 3], trackBombs, Item::FLAME, Item::PASSAGE);
-                REQUIRE(newObs.isAlive[1] == false);
+                REQUIRE(newObs.agents[1].dead == true);
                 REQUIRE(itemAge[1][BOARD_SIZE - 3] == BOMB_LIFETIME - 1);
                 obs = newObs;
 

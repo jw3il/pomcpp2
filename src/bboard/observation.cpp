@@ -26,26 +26,9 @@ inline void copyTo(const State& state, Observation& observation)
     copyAgentInfosTo(state, observation);
 }
 
-inline void setAgentArrays(const State& state, const uint ownAgentID, Observation& observation)
-{
-    AgentInfo self = state.agents[ownAgentID];
-    observation.isAlive[ownAgentID] = !self.dead;
-    observation.isEnemy[ownAgentID] = false;
-
-    for(uint i = 0; i < AGENT_COUNT; i++)
-    {
-        if(i == ownAgentID) continue;
-
-        AgentInfo info = state.agents[i];
-        observation.isAlive[i] = !info.dead;
-        observation.isEnemy[i] = info.team == 0 || info.team != self.team;
-    }
-}
-
 void Observation::Get(const State& state, const uint agentID, const ObservationParameters obsParams, Observation& observation)
 {
     observation.agentID = agentID;
-    setAgentArrays(state, agentID, observation);
 
     // fully observable environment
     if(obsParams.exposePowerUps && !obsParams.agentPartialMapView && obsParams.agentInfoVisibility == AgentInfoVisibility::All)
@@ -211,7 +194,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
                 }
 
                 // however, we always know whether this agent is alive and in which team it is
-                otherObservation.dead = !observation.isAlive[i];
+                otherObservation.dead = other.dead;
                 otherObservation.team = other.team;
             }
             break;
@@ -468,12 +451,7 @@ void Observation::Merge(const Observation& last, const ObservationParameters& pa
 
 void Observation::Kill(int agentID)
 {
-    if(agents[agentID].visible)
-    {
-        agents[agentID].dead = true;
-    }
-
-    isAlive[agentID] = false;
+    agents[agentID].dead = true;
 }
 
 void Observation::EventBombExploded(__attribute__((unused)) Bomb b) {}

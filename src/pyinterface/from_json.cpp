@@ -280,20 +280,7 @@ void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
     // - alive (list with ids), enemies (list with ids),
     // - position (int pair), blast_strength (int), can_kick (bool), teammate (list with ids), ammo (int),
     // - board (int matrix), bomb_blast_strength (float matrix), bomb_life (float matrix), bomb_moving_direction (float matrix), flame_life (float matrix)
-    const nlohmann::json& alive = pyObs["alive"];
-    std::fill_n(obs.isAlive, AGENT_COUNT, false);
-    for(uint i = 0; i < alive.size(); i++)
-    {
-        obs.isAlive[alive[i].get<int>() - 10] = true;
-    }
-
-    const nlohmann::json& enemies = pyObs["enemies"];
-    std::fill_n(obs.isEnemy, AGENT_COUNT, false);
-    for(uint i = 0; i < enemies.size(); i++)
-    {
-        obs.isEnemy[enemies[i].get<int>() - 10] = true;
-    }
-
+    
     GameMode gameMode = _mapPyToGameMode(pyObs["game_type"].get<int>());
 
     // we only observe our own stats and other agents are invisible by default
@@ -301,6 +288,9 @@ void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
     for(int i = 0; i < AGENT_COUNT; i++) 
     {
         AgentInfo& info = obs.agents[i];
+
+        // assume that agent is dead for now (undone for alive agents later)
+        info.dead = true;
 
         info.team = _getTeam(gameMode, i);
 
@@ -310,9 +300,16 @@ void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
         info.x = -i;
         info.y = -1;
         info.statsVisible = false;
-
-        info.dead = !obs.isAlive[i];
     }
+    
+    const nlohmann::json& alive = pyObs["alive"];
+    for(uint i = 0; i < alive.size(); i++)
+    {
+        int id = alive[i].get<int>() - 10;
+        obs.agents[id].dead = false;
+    }
+
+    // we can ignore the "enemies" array because this is already known due to the team mode
     
     AgentInfo& ownInfo = obs.agents[agentId];
     // TODO: Maybe reconstruct number of own active bombs?

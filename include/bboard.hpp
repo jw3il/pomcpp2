@@ -364,9 +364,19 @@ struct AgentInfo
      */
     bool canKick = false;
 
-    Position GetPos() const
+    inline Position GetPos() const
     {
         return {x, y};
+    }
+
+    /**
+     * @brief Checks whether the other agent is an enemy of this agent.
+     * @param other The other agent.
+     * @return Whether the given agent is an enemy of this agent. 
+     */
+    inline bool IsEnemy(const AgentInfo& other) const
+    {
+        return team == 0 || other.team != team; 
     }
 };
 
@@ -521,6 +531,17 @@ public:
      * @param board The board which should be copied.
      */
     void CopyFrom(const Board& board);
+
+    /**
+     * @brief Checks whether the agents with the given ids are enemies.
+     * @param agentA The id of the first agent.
+     * @param agentB The id of the second agent.
+     * @return Whether the agents are enemies.
+     */
+    inline bool Enemies(int agentA, int agentB) const
+    {
+        return agents[agentA].IsEnemy(agents[agentB]);
+    }
 
     /**
      * @brief PutItem Places an item on the board
@@ -790,11 +811,6 @@ class Observation : public Board
 {
 public:
     int agentID;
-
-    // TODO: Add messages
-
-    bool isAlive[AGENT_COUNT];
-    bool isEnemy[AGENT_COUNT];
 
     /**
      * @brief GetObservation Creates an observation for some agent based on a state.

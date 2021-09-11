@@ -679,14 +679,6 @@ void _printArray(const T arr[c])
 void PrintObservation(const Observation* obs, bool clearConsole)
 {
     PrintBoard(obs, clearConsole);
-
-    std::cout << "IsAlive: ";
-    _printArray<bool, AGENT_COUNT>(obs->isAlive);
-    std::cout << std::endl;
-
-    std::cout << "IsEnemy: ";
-    _printArray<bool, AGENT_COUNT>(obs->isEnemy);
-    std::cout << std::endl;
 }
 
 std::string PrintItem(int item)
