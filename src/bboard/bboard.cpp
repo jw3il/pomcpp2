@@ -400,6 +400,15 @@ void State::PutAgentsInCorners(int a0, int a1, int a2, int a3, int padding)
     PutAgent(min, max, a3);
 }
 
+bool State::IsWinner(int agentID) const
+{
+    if (!finished) {
+        return false;
+    }
+
+    return winningAgent == agentID || (winningTeam != 0 && agents[agentID].team == winningTeam);
+}
+
 inline int _invert(const int boardPos)
 {
     return BOARD_SIZE - 1 - boardPos;

@@ -331,12 +331,6 @@ struct AgentInfo
     bool dead = false;
 
     /**
-     * @brief won Agents win if they are either in the winning team
-     * (all agents of other teams are dead) or the only agent alive.
-     */
-    bool won = false;
-
-    /**
      * @brief If an agent is not visible, its position (x, y) is unknown.
      */
     bool visible = true;
@@ -729,6 +723,13 @@ public:
      * @param agentID The agent ID (from 0 to AGENT_COUNT)
      */
     void PutAgent(int x, int y, int agentID);
+
+    /**
+     * @brief Checks whether the given agent has won.
+     * @param agentID The agent ID
+     * @return Whether the agent has won
+     */
+    bool IsWinner(int agentID) const;
 
     /**
      * Kills all listed agents.

@@ -677,11 +677,6 @@ void CheckTerminalState(State& state)
         // nobody won when all agents are dead
         state.finished = true;
         state.isDraw = true;
-
-        for(int i = 0; i < AGENT_COUNT; i++)
-        {
-            state.agents[i].won = false;
-        }
     }
     else if(state.aliveAgents == 1)
     {
@@ -693,13 +688,8 @@ void CheckTerminalState(State& state)
         for(int i = 0; i < AGENT_COUNT; i++)
         {
             AgentInfo& info = state.agents[i];
-            if (info.dead)
+            if (!info.dead)
             {
-                info.won = false;
-            }
-            else
-            {
-                info.won = true;
                 // the agent might be in some team
                 state.winningTeam = info.team;
                 // if not, that is the winning agent
@@ -724,19 +714,6 @@ void CheckTerminalState(State& state)
     {
         state.finished = true;
         state.isDraw = false;
-
-        for(int i = 0; i < AGENT_COUNT; i++)
-        {
-            AgentInfo& info = state.agents[i];
-            if (info.team == state.winningTeam)
-            {
-                info.won = true;
-            }
-            else
-            {
-                info.won = false;
-            }
-        }
     }
 }
 

@@ -35,18 +35,24 @@ void REQUIRE_CORRECT_RESULT_FFA(bboard::Environment& env)
         if(winningAgent != -1)
         {
             // either exactly one winner
-            REQUIRE(env.GetState().agents[winningAgent].won == true);
+            REQUIRE(env.GetState().agents[winningAgent].dead == false);
+            REQUIRE(env.GetState().IsWinner(winningAgent) == true);
             for(int i = 0; i < bboard::AGENT_COUNT; i++)
             {
                 if(i == winningAgent) continue;
 
-                REQUIRE(env.GetState().agents[i].won == false);
+                REQUIRE(env.GetState().agents[i].dead == true);
+                REQUIRE(env.GetState().IsWinner(i) == false);
             }
         }
         else
         {
             // or no winners
             REQUIRE(env.IsDraw() == true);
+            for(int i = 0; i < bboard::AGENT_COUNT; i++)
+            {
+                REQUIRE(env.GetState().IsWinner(i) == false);
+            }
         }
     }
     else
@@ -69,8 +75,8 @@ void REQUIRE_CORRECT_RESULT_TEAMS(bboard::Environment& env)
             for(int i = 0; i < bboard::AGENT_COUNT; i++)
             {
                 bboard::AgentInfo info = env.GetState().agents[i];
-                // an agent has won iff he is in the winning team
-                REQUIRE(info.won == (info.team == winningTeam));
+                // an agent has won iff it is in the winning team
+                REQUIRE(env.GetState().IsWinner(i) == (info.team == winningTeam));
             }
         }
         else
