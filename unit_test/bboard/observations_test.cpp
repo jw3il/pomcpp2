@@ -161,8 +161,43 @@ void REQUIRE_ITEM_IF(int item, bool condition, int trueItem, int falseItem)
     }
 }
 
+void REQUIRE_FLAME_IF(int item, bool condition, int falseItem)
+{
+    if(condition)
+    {
+        REQUIRE(bboard::IS_FLAME(item) == true);
+    }
+    else
+    {
+        REQUIRE(item == falseItem);
+    }
+}
+
+void _print_flames(const Board& b) 
+{
+    for (int i = 0; i < b.flames.count - 1; i++) {
+        std::cout << b.flames[i].timeLeft << ", ";
+    }
+
+    if (b.flames.count > 0) {
+        std::cout << b.flames[b.flames.count - 1].timeLeft << std::endl;
+    }
+}
+void _print_step(const State& s, const Observation& o)
+{
+    std::cout << "Step " << s.timeStep << " > State" << std::endl;
+    bboard::PrintBoard(&s);
+    _print_flames(s);
+
+    std::cout << "Step " << s.timeStep << " > Observation" << std::endl;
+    bboard::PrintBoard(&o);
+    _print_flames(o);
+}
+
 TEST_CASE("Merge Observations", "[observation]")
 {
+    bool print = false;
+
     ObservationParameters params;
     params.agentPartialMapView = true;
     params.agentViewSize = 1;
@@ -178,6 +213,8 @@ TEST_CASE("Merge Observations", "[observation]")
 
     Observation obs;
     Observation::Get(s, 0, params, obs);
+
+    if (print) _print_step(s, obs);
 
     // all the items are within our view range
     REQUIRE(obs.items[0][0] == Item::RIGID);
@@ -211,6 +248,8 @@ TEST_CASE("Merge Observations", "[observation]")
         REQUIRE(itemAge[0][0] == (i + 1));
         REQUIRE(itemAge[1][1 + i] == 0);
         obs = newObs;
+
+        if (print) _print_step(s, obs);
     }
 
     // place a bomb next to agent 1
@@ -225,6 +264,8 @@ TEST_CASE("Merge Observations", "[observation]")
     newObs.Merge(obs, params, false, false, &itemAge);
     obs = newObs;
 
+    if (print) _print_step(s, obs);
+
     // run away downwards
     m[0] = Move::DOWN;
 
@@ -237,6 +278,8 @@ TEST_CASE("Merge Observations", "[observation]")
 
     newObs.Merge(obs, params, false, false, &itemAge);
     obs = newObs;
+
+    if (print) _print_step(s, obs);
 
     for (bool trackBombs : {true, false})
     {
@@ -258,21 +301,31 @@ TEST_CASE("Merge Observations", "[observation]")
                     REQUIRE_ITEM_IF(newObs.items[1][BOARD_SIZE - 3], trackBombs, Item::BOMB, Item::PASSAGE);
                     REQUIRE_ITEM_IF(newObs.items[1][BOARD_SIZE - 2], trackAgents, Item::AGENT1, Item::PASSAGE);
                     obs = newObs;
+
+                    if (print) _print_step(s, obs);
                 }
 
                 // reconstructed bombs eventually explode, even out of view
                 bboard::Step(&s, m);
-                REQUIRE(s.items[1][BOARD_SIZE - 3] == Item::FLAME);
+                REQUIRE(bboard::IS_FLAME(s.items[1][BOARD_SIZE - 3]) == true);
                 REQUIRE(s.agents[1].dead == true);
 
                 Observation::Get(s, 0, params, newObs);
                 REQUIRE(newObs.items[1][BOARD_SIZE - 3] == Item::FOG);
 
                 newObs.Merge(obs, params, trackAgents, trackBombs, &itemAge);
-                REQUIRE_ITEM_IF(newObs.items[1][BOARD_SIZE - 3], trackBombs, Item::FLAME, Item::PASSAGE);
+                // center of the bomb
+                REQUIRE_FLAME_IF(newObs.items[1][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
+                // other flame items
+                REQUIRE_FLAME_IF(newObs.items[2][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
+                REQUIRE_FLAME_IF(newObs.items[0][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
+                REQUIRE_FLAME_IF(newObs.items[1][BOARD_SIZE - 2], trackBombs, trackAgents ? Item::AGENT1 : Item::PASSAGE);
+                REQUIRE_FLAME_IF(newObs.items[1][BOARD_SIZE - 4], trackBombs, Item::PASSAGE);
                 REQUIRE(newObs.agents[1].dead == true);
                 REQUIRE(itemAge[1][BOARD_SIZE - 3] == BOMB_LIFETIME - 1);
                 obs = newObs;
+
+                if (print) _print_step(s, obs);
 
                 if(trackBombs)
                 {
@@ -283,6 +336,8 @@ TEST_CASE("Merge Observations", "[observation]")
                         Observation::Get(s, 0, params, newObs);
                         newObs.Merge(obs, params, true, true, &itemAge);
                         obs = newObs;
+
+                        if (print) _print_step(s, obs);
                     }
 
                     bboard::Step(&s, m);
@@ -294,6 +349,8 @@ TEST_CASE("Merge Observations", "[observation]")
                     newObs.Merge(obs, params, trackAgents, trackBombs, &itemAge);
                     REQUIRE(newObs.items[1][BOARD_SIZE - 3] == Item::PASSAGE);
                     obs = newObs;
+
+                    if (print) _print_step(s, obs);
                 }
             }
         }

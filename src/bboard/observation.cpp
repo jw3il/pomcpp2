@@ -307,10 +307,27 @@ void _addBombsFromLastStep(const Observation& last, Observation& current, const 
     }
 }
 
+void _convertToAbsoluteFlameTimes(Observation& obs)
+{
+    if (obs.currentFlameTime == -1) {
+        return;
+    }
+
+    obs.currentFlameTime = -1;
+    int cumulativeFlameTime = 0;
+    for (int i = 0; i < obs.flames.count; i++) {
+        cumulativeFlameTime += obs.flames[i].timeLeft;
+        obs.flames[i].timeLeft = cumulativeFlameTime;
+    }
+}
+
 void _addFlamesFromLastStep(const Observation& last, Observation& current, const ObservationParameters& params)
 {
     if(!params.agentPartialMapView)
         return;
+
+    // temporarily undo flame time optimization to correctly merge flames
+    _convertToAbsoluteFlameTimes(current);
 
     Position center = current.agents[current.agentID].GetPos();
 
@@ -322,16 +339,18 @@ void _addFlamesFromLastStep(const Observation& last, Observation& current, const
         positions.insert(current.flames[i].position);
     }
 
+    int cumulativeFlameTime = 0;
     for(int i = 0; i < last.flames.count; i++)
     {
         Flame f = last.flames[i];
+        cumulativeFlameTime += f.timeLeft;
 
         // only update flames which are outside of our view
         // and not already in our flames list
         if(!InViewRange(center, f.position, params.agentViewSize)
                 && positions.find(f.position) == positions.end())
         {
-            if(f.timeLeft <= 1)
+            if(cumulativeFlameTime <= 1)
             {
                 // disappearing flames leave passages behind (last item is flame)
                 current.items[f.position.y][f.position.x] = Item::PASSAGE;
@@ -339,11 +358,13 @@ void _addFlamesFromLastStep(const Observation& last, Observation& current, const
             else
             {
                 // add the new flame to the obs (item is already set)
-                f.timeLeft -= 1;
+                f.timeLeft = cumulativeFlameTime - 1;
                 current.flames.AddElem(f);
             }
         }
     }
+
+    current.currentFlameTime = util::OptimizeFlameQueue(current);
 }
 
 std::array<bool, AGENT_COUNT> _getAgentVisibility(const Board &board)
@@ -440,7 +461,7 @@ void Observation::Merge(const Observation& last, const ObservationParameters& pa
     if(bombs)
     {
         _addBombsFromLastStep(last, *this, params);
-        // after adding bombs, let them explode (if necessary)
+        // after adding old bombs, let them explode (if necessary)
         util::ExplodeBombs(this);
     }
 
