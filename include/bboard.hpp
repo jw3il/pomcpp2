@@ -317,17 +317,7 @@ inline std::ostream & operator<<(std::ostream & str, const Position& v)
  */
 struct AgentInfo
 {
-    int x;
-    int y;
-
-    int bombCount = 0;
-    bool dead = false;
-
-    int maxBombCount = 1;
-    int bombStrength = BOMB_DEFAULT_STRENGTH;
-    bool canKick = false;
-
-    bool ignore = false;
+    // public information
 
     /**
      * @brief team An id for the team this agents belongs to.
@@ -336,10 +326,49 @@ struct AgentInfo
     int team = 0;
 
     /**
+     * @brief Whether this agent is dead. 
+     */
+    bool dead = false;
+
+    /**
      * @brief won Agents win if they are either in the winning team
      * (all agents of other teams are dead) or the only agent alive.
      */
     bool won = false;
+
+    /**
+     * @brief If an agent is not visible, its position (x, y) is unknown.
+     */
+    bool visible = true;
+    int x;
+    int y;
+
+    // private information (in observations only known in special cases, e.g. for the own agent)
+
+    /**
+     * @brief Whether the stats (bombCount, maxBombCount, bombStrength, canKick) of this agent are visible.
+     */
+    bool statsVisible = true;
+
+    /**
+     * @brief The number of active bombs placed by this agent.
+     */
+    int bombCount = 0;
+
+    /**
+     * @brief The maximal number of bombs this agent can place simultaneously.
+     */
+    int maxBombCount = 1;
+
+    /**
+     * @brief The strength = range of bombs in cells.
+     */
+    int bombStrength = BOMB_DEFAULT_STRENGTH;
+
+    /**
+     * @brief Whether this agent can kick bombs.
+     */
+    bool canKick = false;
 
     Position GetPos() const
     {
@@ -466,6 +495,11 @@ public:
      * bombs and flames is stored in separate queues.
      */
     int items[BOARD_SIZE][BOARD_SIZE];
+
+    /**
+     * @brief agents Array of all agents and their properties
+     */
+    AgentInfo agents[AGENT_COUNT];
 
     /**
      * @brief bombQueue Holds all bombs on this board
@@ -654,11 +688,6 @@ public:
     int winningAgent = -1;
 
     /**
-     * @brief agents Array of all agents and their properties
-     */
-    AgentInfo agents[AGENT_COUNT];
-
-    /**
      * @brief aliveAgents The number of alive agents (same as sum([!a.dead for a in agents])
      */
     int aliveAgents = AGENT_COUNT;
@@ -718,33 +747,6 @@ public:
 };
 
 /**
- * @brief The Agent struct defines a behaviour. For a given
- * state it will return a Move.
- */
-struct Agent
-{
-    virtual ~Agent() {}
-
-    int id = -1;
-
-    /**
-     * This method defines the behaviour of the Agent.
-     * Classes that implement Agent can be used to participate
-     * in a game and run.
-     *
-     * @brief For a given state, return a Move
-     * @param state The (potentially fogged) board state
-     * @return A Move (integer, 0-..)
-     */
-    virtual Move act(const State* state) = 0;
-
-    /**
-     * @brief Reset the state of this agent for a new episode.
-     */
-    virtual void reset();
-};
-
-/**
  * @brief Defines which agent information is in an observation.
  */
 enum class AgentInfoVisibility
@@ -786,10 +788,9 @@ struct ObservationParameters
 class Observation : public Board
 {
 public:
-    FixedQueue<AgentInfo, AGENT_COUNT> agentInfos;
-    int agentIDMapping[AGENT_COUNT];
-
     int agentID;
+
+    // TODO: Add messages
 
     bool isAlive[AGENT_COUNT];
     bool isEnemy[AGENT_COUNT];
@@ -826,6 +827,34 @@ public:
 };
 
 /**
+ * @brief The Agent struct defines a behaviour. For a given
+ * state it will return a Move.
+ */
+struct Agent
+{
+    virtual ~Agent() {}
+
+    int id = -1;
+
+    /**
+     * This method defines the behaviour of the Agent.
+     * Classes that implement Agent can be used to participate
+     * in a game and run.
+     *
+     * @brief For a given observation, return a Move
+     * 
+     * @param obs The observation
+     * @return A Move (integer, 0-..)
+     */
+    virtual Move act(const Observation* obs) = 0;
+
+    /**
+     * @brief Reset the state of this agent for a new episode.
+     */
+    virtual void reset();
+};
+
+/**
  * @brief The Environment struct holds all information about a
  * Game (current state, participating agents) and takes care of
  * distributing observations to the correct agents.
@@ -837,9 +866,12 @@ private:
 
     std::unique_ptr<State> state;
     std::array<Agent*, AGENT_COUNT> agents;
+    std::array<Observation, AGENT_COUNT> observations;
+
     std::function<void(const Environment&)> listener;
 
     GameMode gameMode;
+    ObservationParameters observationParameters;
 
     // Current State
     bool hasStarted = false;
@@ -859,6 +891,11 @@ public:
      * @brief MakeGame Initializes the state
      */
     void MakeGame(std::array<Agent*, AGENT_COUNT> a, GameMode gameMode = GameMode::FreeForAll, long boardSeed = 0x1337, long agentPositionSeed = -1);
+
+    /**
+     * @brief Sets the observation parameters that are used to create the observations for all agents.
+     */
+    void SetObservationParameters(ObservationParameters parameters);
 
     /**
      * @brief RunGame simulates some steps in the game.
@@ -896,6 +933,11 @@ public:
      * the environment
      */
     State& GetState() const;
+
+    /**
+     * @brief Updates the observation of the given agent and returns a pointer to it.
+     */
+    const Observation* GetObservation(uint agentID);
 
     /**
      * @brief SetAgents Registers all agents that will participate
@@ -959,15 +1001,6 @@ public:
  * @param moves Array of 4 moves
  */
 void Step(State* state, Move* moves);
-
-/**
- * @brief StartGame starts a game and prints in the terminal output
- * (blocking)
- * @param state The initial state of the game
- * @param agents Array of agents that participate in this game
- * @param timeSteps maximum of time steps after which the game ends
- */
-void StartGame(State* state, Agent* agents[AGENT_COUNT], int timeSteps);
 
 /**
  * @brief Prints the board into the standard output stream.

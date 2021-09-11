@@ -1,10 +1,12 @@
 # exclude binaries, object files and static libraries
 Release/
+build/
 
 # exclude personal IDE project files
 .qtcreator.*
 *.creator.*
 *.qtcreator.*
+.vscode/
 
 CMakeLists.txt.user
 

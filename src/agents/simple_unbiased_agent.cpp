@@ -76,31 +76,31 @@ bool _UHasRPLoop(SimpleAgent& me)
 }
 
 // not modified
-bool _UCheckPos(const State& state, int x, int y)
+bool _UCheckPos(const Board& b, int x, int y)
 {
-    return !util::IsOutOfBounds(x, y) && IS_WALKABLE(state.items[y][x]);
+    return !util::IsOutOfBounds(x, y) && IS_WALKABLE(b.items[y][x]);
 }
 
-void _USafeDirections(const SimpleUnbiasedAgent& me, const State& state, FixedQueue<Move, MOVE_COUNT>& q, int x, int y)
+void _USafeDirections(const SimpleUnbiasedAgent& me, const Board& b, FixedQueue<Move, MOVE_COUNT>& q, int x, int y)
 {
     for (Move m : me.dirAxis) 
     {
         Position desired = util::DesiredPosition(x, y, m);
-        int d = IsInDanger(state, desired.x, desired.y);
-        if(_UCheckPos(state, desired.x, desired.y) && _safe_condition(d))
+        int d = IsInDanger(b, desired.x, desired.y);
+        if(_UCheckPos(b, desired.x, desired.y) && _safe_condition(d))
         {
             q.AddElem(m);
         }
     }
 }
 
-Move _UMoveSafeOneSpace(SimpleUnbiasedAgent& me, const State* state)
+Move _UMoveSafeOneSpace(SimpleUnbiasedAgent& me, const Board& b)
 {
-    const AgentInfo& a = state->agents[me.id];
+    const AgentInfo& a = b.agents[me.id];
     me.moveQueue.count = 0;
     
     std::shuffle(me.dirAxis.begin(), me.dirAxis.end(), me.rng);
-    _USafeDirections(me, *state, me.moveQueue, a.x, a.y);
+    _USafeDirections(me, b, me.moveQueue, a.x, a.y);
     SortDirections(me.moveQueue, me.recentPositions, a.x, a.y);
 
     if(me.moveQueue.count == 0)
@@ -109,7 +109,7 @@ Move _UMoveSafeOneSpace(SimpleUnbiasedAgent& me, const State* state)
         return me.moveQueue[me.rng() % std::min(2, me.moveQueue.count)];
 }
 
-Move _UMoveTowardsSafePlace(const SimpleUnbiasedAgent &me, const State& state, const RMap& r, int radius)
+Move _UMoveTowardsSafePlace(const SimpleUnbiasedAgent &me, const Board& b, const RMap& r, int radius)
 {
     int originX = r.source.x;
     int originY = r.source.y;
@@ -127,7 +127,7 @@ Move _UMoveTowardsSafePlace(const SimpleUnbiasedAgent &me, const State& state, c
             if(util::IsOutOfBounds({x, y}) ||
                     std::abs(x - originX) + std::abs(y - originY) > radius) continue;
 
-            if(r.GetDistance(x, y) != 0 && _safe_condition(IsInDanger(state, x, y)))
+            if(r.GetDistance(x, y) != 0 && _safe_condition(IsInDanger(b, x, y)))
             {
                 return MoveTowardsPosition(r, {x, y});
             }
@@ -136,18 +136,18 @@ Move _UMoveTowardsSafePlace(const SimpleUnbiasedAgent &me, const State& state, c
     return Move::IDLE;
 }
 
-Move _UMoveTowardsEnemy(const SimpleUnbiasedAgent &me, const State& state, const RMap& r, int radius)
+Move _UMoveTowardsEnemy(const SimpleUnbiasedAgent &me, const Board& b, const RMap& r, int radius)
 {
     const Position& a = r.source;
 
     for(int i : me.agentAxis)
     {
-        const AgentInfo& inf = state.agents[i];
+        const AgentInfo& inf = b.agents[i];
 
         if((inf.x == a.x && inf.y == a.y) || inf.dead) continue;
 
-        int x = state.agents[i].x;
-        int y = state.agents[i].y;
+        int x = b.agents[i].x;
+        int y = b.agents[i].y;
         if(std::abs(x - a.x) + std::abs(y - a.y) > radius)
         {
             continue;
@@ -162,7 +162,7 @@ Move _UMoveTowardsEnemy(const SimpleUnbiasedAgent &me, const State& state, const
     return Move::IDLE;
 }
 
-Move _UMoveTowardsPowerup(const SimpleUnbiasedAgent &me, const State& state, const RMap& r, int radius)
+Move _UMoveTowardsPowerup(const SimpleUnbiasedAgent &me, const Board& b, const RMap& r, int radius)
 {
     int minDist = std::numeric_limits<int>::max();
     const Position& a = r.source;
@@ -176,7 +176,7 @@ Move _UMoveTowardsPowerup(const SimpleUnbiasedAgent &me, const State& state, con
                 || std::abs(y - a.y) > radius)
                 continue;
 
-            if(IS_POWERUP(state.items[y][x]))
+            if(IS_POWERUP(b.items[y][x]))
             {
                 int dist = r.GetDistance(x, y);
                 if (dist != 0 && dist < minDist)
@@ -184,7 +184,7 @@ Move _UMoveTowardsPowerup(const SimpleUnbiasedAgent &me, const State& state, con
                     Move m = MoveTowardsPosition(r, {x, y});
                     Position p = util::DesiredPosition(a.x, a.y, m);
 
-                    if(!_safe_condition(IsInDanger(state, p.x, p.y)))
+                    if(!_safe_condition(IsInDanger(b, p.x, p.y)))
                     {
                         continue;
                     }
@@ -200,19 +200,19 @@ Move _UMoveTowardsPowerup(const SimpleUnbiasedAgent &me, const State& state, con
     return moveTowardsPowerup;
 }
 
-bool _UIsEnemyInLine(const State& state, int agentID, int distance)
+bool _UIsEnemyInLine(const Board& b, int agentID, int distance)
 {
-    const AgentInfo& a = state.agents[agentID];
+    const AgentInfo& a = b.agents[agentID];
 
     for(int i = 0; i < bboard::AGENT_COUNT; i++)
     {
         // ignore self and dead agents
-        if(i == agentID || state.agents[i].dead) continue;
+        if(i == agentID || b.agents[i].dead) continue;
         // ignore team
-        if(a.team != 0 && a.team == state.agents[i].team) continue;
+        if(a.team != 0 && a.team == b.agents[i].team) continue;
 
         // x line
-        Position otherPos = state.agents[i].GetPos();
+        Position otherPos = b.agents[i].GetPos();
 
         if(otherPos.x == a.x && std::abs(otherPos.y - a.y) <= distance)
         {
@@ -222,7 +222,7 @@ bool _UIsEnemyInLine(const State& state, int agentID, int distance)
             for(int y = min + 1; y < min + diff - 1; y++)
             {
                 // no walls in the way (wood & powerups are destructible..)
-                if(state.items[y][a.x] == Item::RIGID)
+                if(b.items[y][a.x] == Item::RIGID)
                 {
                     found = true;
                     break;
@@ -239,7 +239,7 @@ bool _UIsEnemyInLine(const State& state, int agentID, int distance)
             for(int x = min + 1; x < min + diff - 1; x++)
             {
                 // no walls in the way (wood & powerups are destructible..)
-                if(state.items[a.y][x] == Item::RIGID)
+                if(b.items[a.y][x] == Item::RIGID)
                 {
                     found = true;
                     break;
@@ -252,21 +252,23 @@ bool _UIsEnemyInLine(const State& state, int agentID, int distance)
     return false;
 }
 
-Move SimpleUnbiasedAgent::decide(const State* state)
+Move SimpleUnbiasedAgent::decide(const Observation* obs)
 {
-    const AgentInfo& a = state->agents[id];
-    FillRMap(*state, r, id);
+    const Board& b = *obs;
+    const AgentInfo& a = obs->agents[id];
 
-    danger = IsInDanger(*state, id);
+    FillRMap(b, r, id);
+
+    danger = IsInDanger(b, id);
 
     // the upper bound controls the greedyness of the agent (lower bound for more greed). 
     // Note that greedy agents seem to perform quite bad against non-greedy agents.
     if(danger > 0 && danger < 10)
     {
-        Move m = _UMoveTowardsSafePlace(*this, *state, r, danger);
+        Move m = _UMoveTowardsSafePlace(*this, b, r, danger);
         Position p = util::DesiredPosition(a.x, a.y, m);
-        if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(state->items[p.y][p.x]) &&
-                _safe_condition(IsInDanger(*state, p.x, p.y), 2))
+        if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(b.items[p.y][p.x]) &&
+                _safe_condition(IsInDanger(b, p.x, p.y), 2))
         {
             return m;
         }
@@ -275,13 +277,13 @@ Move SimpleUnbiasedAgent::decide(const State* state)
     {
         // prioritize enemy destruction
         // _UIsEnemyInLine(*state, me.id, (int)std::ceil(state->agents[me.id].bombStrength / 2.0f)))
-        if(IsAdjacentEnemy(*state, id, 1))
+        if(IsAdjacentEnemy(b, id, 1))
         {
             return Move::BOMB;
         }
 
         // target enemies across the map
-        if(IsAdjacentEnemy(*state, id, 14))
+        if(IsAdjacentEnemy(b, id, 14))
         {
             // if you're stuck in a loop try to break out by randomly selecting
             // an action ( we could IDLE but the mirroring of agents is tricky)
@@ -289,28 +291,28 @@ Move SimpleUnbiasedAgent::decide(const State* state)
                 return Move(rng() % 4 + 1);
             }
 
-            Move m = _UMoveTowardsEnemy(*this, *state, r, 14);
+            Move m = _UMoveTowardsEnemy(*this, b, r, 14);
             Position p = util::DesiredPosition(a.x, a.y, m);
-            if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(state->items[p.y][p.x]) &&
-                    _safe_condition(IsInDanger(*state, p.x, p.y), 3))
+            if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(b.items[p.y][p.x]) &&
+                    _safe_condition(IsInDanger(b, p.x, p.y), 3))
             {
                 return m;
             }
         }
 
-        if(IsAdjacentItem(*state, id, 1, Item::WOOD))
+        if(IsAdjacentItem(b, id, 1, Item::WOOD))
         {
             return Move::BOMB;
         }
     }
 
-    Move moveTowardsPowerup = _UMoveTowardsPowerup(*this, *state, r, 5);
+    Move moveTowardsPowerup = _UMoveTowardsPowerup(*this, b, r, 5);
     if (moveTowardsPowerup != Move::IDLE)
     {
         return moveTowardsPowerup;
     }
 
-    return _UMoveSafeOneSpace(*this, state);
+    return _UMoveSafeOneSpace(*this, b);
 }
 
 }

@@ -581,25 +581,6 @@ void bboard::Agent::reset()
     // default reset does nothing
 }
 
-void StartGame(State* state, Agent* agents[AGENT_COUNT], int timeSteps)
-{
-    Move moves[4];
-
-    for(int i = 0; i < timeSteps; i++)
-    {
-        std::cout << "\033c"; // clear console on linux
-        for(int j = 0; j < AGENT_COUNT; j++)
-        {
-            moves[j] = agents[j]->act(state);
-        }
-
-        Step(state, moves);
-        PrintState(state);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(80));
-    }
-}
-
 void PrintState(const State* state, bool clearConsole)
 {
     // clears console on linux

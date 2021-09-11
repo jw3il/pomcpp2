@@ -107,7 +107,7 @@ TEST_CASE("Round trip", "[observation]")
     REQUIRE(s.agents[2].x == s2.agents[2].x);
     REQUIRE(s.agents[2].y == s2.agents[2].y);
     REQUIRE(s.agents[2].team == s2.agents[2].team);
-    REQUIRE(s2.agents[2].ignore == false);
+    REQUIRE(s2.agents[2].visible == true);
 }
 
 TEST_CASE("Planning Step", "[observation]")

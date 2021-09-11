@@ -59,6 +59,27 @@ Direction _mapPyToDir(int py)
     }
 }
 
+/**
+ * @brief Maps a python game type to the corresponding pomcpp game mode.
+ * @param py The python game type integer
+ * @return The pomcpp GameMode for the given python game type.
+ */
+GameMode _mapPyToGameMode(int py)
+{
+    /* 
+        FFA = 1
+        Team = 2
+        TeamRadio = 3
+        OneVsOne = 4
+    */
+    switch (py)
+    {
+        case 1: return GameMode::FreeForAll;
+        case 2: return GameMode::TwoTeams;
+        default: throw std::runtime_error("Not supported game mode " + std::to_string(py));
+    }
+}
+
 void _boardFromJSON(const nlohmann::json& pyBoard, State& state)
 {
     for(int y = 0; y < BOARD_SIZE; y++)
@@ -70,23 +91,23 @@ void _boardFromJSON(const nlohmann::json& pyBoard, State& state)
     }
 }
 
-void _agentInfoFromJSON(const nlohmann::json& pyInfo, AgentInfo& info)
+void _agentInfoFromJSON(const nlohmann::json& pyInfo, AgentInfo& info, int agentActiveBombsCount = 0)
 {
     // attributes: agent_id, ammo, blast_strength, can_kick, is_alive, position (tuple)
-
-    // agent_id is defined by the info index
-    // info.team and info.bombCount must be set outside this function
+    // info.team must be set outside this function
     
-    // WARNING: info.bombCount has to be set before this function is called!!
-
     // Agent positions are stored (row, column)
+    info.visible = true;
     info.x = pyInfo["position"][1];
     info.y = pyInfo["position"][0];
 
     info.dead = !pyInfo.value("is_alive", true);
 
+    info.statsVisible = true;
     info.canKick = pyInfo["can_kick"];
-    info.maxBombCount = info.bombCount + pyInfo["ammo"].get<int>();
+    // WARNING: Not possible to get actual bomb count from observation (?)
+    info.bombCount = agentActiveBombsCount;
+    info.maxBombCount = agentActiveBombsCount + pyInfo["ammo"].get<int>();
     info.bombStrength = pyInfo["blast_strength"];
 }
 
@@ -127,6 +148,20 @@ void _flameFromJSON(const nlohmann::json& pyFlame, Flame& flame)
     flame.timeLeft = pyFlame["life"].get<int>() + 1;
 }
 
+inline int _getTeam(GameMode gameMode, int agentID)
+{
+    switch (gameMode)
+    {
+    case GameMode::FreeForAll:
+        return 0;
+    case GameMode::TwoTeams:
+        return (agentID % 2 == 0) ? 1 : 2;
+    default:
+        std::cout << "Warning: Unknown game mode mode '" << (int)gameMode << "'" << std::endl;
+        return 0;
+    }
+}
+
 void StateFromJSON(State& state, const std::string& json, GameMode gameMode)
 {
     // attributes: board_size, step_count, board, agents, bombs, flames, items, intended_actions
@@ -146,7 +181,7 @@ void StateFromJSON(State& state, const std::string& json, GameMode gameMode)
         info.bombCount = 0;
     }
 
-    // set bombs
+    // count bombs
     const nlohmann::json& pyBombs = pyState["bombs"];
     state.bombs.count = 0;
     for(uint i = 0; i < pyBombs.size(); i++)
@@ -169,23 +204,14 @@ void StateFromJSON(State& state, const std::string& json, GameMode gameMode)
 
         _checkKeyValue(pyInfo, "agent_id", i);
 
-        _agentInfoFromJSON(pyInfo, info);
+        _agentInfoFromJSON(pyInfo, info, info.bombCount);
 
         if(!info.dead)
         {
             state.aliveAgents++;
         }
 
-        // assign teams
-        switch (gameMode)
-        {
-            case GameMode::FreeForAll:
-                info.team = 0;
-                break;
-            case GameMode::TwoTeams:
-                info.team = (i % 2 == 0) ? 1 : 2;
-                break;
-        }
+        info.team = _getTeam(gameMode, i);
 
         if(!info.dead && state.items[info.y][info.x] < Item::AGENT0)
         {
@@ -247,55 +273,59 @@ State StateFromJSON(const std::string& json, GameMode gameMode)
 
 void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
 {
-    nlohmann::json pyState = nlohmann::json::parse(json);
+    nlohmann::json pyObs = nlohmann::json::parse(json);
 
     // attributes:
     // - game_type (int), game_env (string), step_count (int)
     // - alive (list with ids), enemies (list with ids),
     // - position (int pair), blast_strength (int), can_kick (bool), teammate (list with ids), ammo (int),
     // - board (int matrix), bomb_blast_strength (float matrix), bomb_life (float matrix), bomb_moving_direction (float matrix), flame_life (float matrix)
-    const nlohmann::json& alive = pyState["alive"];
+    const nlohmann::json& alive = pyObs["alive"];
     std::fill_n(obs.isAlive, AGENT_COUNT, false);
     for(uint i = 0; i < alive.size(); i++)
     {
         obs.isAlive[alive[i].get<int>() - 10] = true;
     }
 
-    const nlohmann::json& enemies = pyState["enemies"];
+    const nlohmann::json& enemies = pyObs["enemies"];
     std::fill_n(obs.isEnemy, AGENT_COUNT, false);
     for(uint i = 0; i < enemies.size(); i++)
     {
         obs.isEnemy[enemies[i].get<int>() - 10] = true;
     }
 
-    // we only observe ourself
-    std::fill_n(obs.agentIDMapping, AGENT_COUNT, -1);
-    obs.agentIDMapping[agentId] = 0;
-    obs.agentInfos.count = 1;
-    
-    AgentInfo& info = obs.agentInfos[0];
-    info.bombCount = 0;
+    GameMode gameMode = _mapPyToGameMode(pyObs["game_type"].get<int>());
 
-    // set agent info
-    _agentInfoFromJSON(pyState, info);
+    // we only observe our own stats and other agents are invisible by default
+    // (but we may find them when iterating over the board later)
+    for(int i = 0; i < AGENT_COUNT; i++) 
+    {
+        AgentInfo& info = obs.agents[i];
+
+        info.team = _getTeam(gameMode, i);
+
+        if (i == agentId) continue;
+
+        info.visible = false;
+        info.x = -i;
+        info.y = -1;
+        info.statsVisible = false;
+
+        info.dead = !obs.isAlive[i];
+    }
+    
+    AgentInfo& ownInfo = obs.agents[agentId];
+    // TODO: Maybe reconstruct number of own active bombs?
+    _agentInfoFromJSON(pyObs, ownInfo);
 
     // set board
-
-    // try to reconstruct own bombs from given observation
-    /*std::unordered_set<Position> ownBombs;
-    for(int i = 0; i < obs.bombs.count; i++)
-    {
-        Bomb& b = obs.bombs[i];
-        if(BMB_ID(b) == agentId)
-        {
-            ownBombs.insert({BMB_POS_X(b), BMB_POS_Y(b)});
-        }
-    }*/
 
     obs.bombs.count = 0;
     obs.flames.count = 0;
     obs.currentFlameTime = -1;
-    const nlohmann::json& pyBoard = pyState["board"];
+    
+    const nlohmann::json& pyBoard = pyObs["board"];
+
     for(int y = 0; y < BOARD_SIZE; y++)
     {
         for(int x = 0; x < BOARD_SIZE; x++)
@@ -303,21 +333,27 @@ void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
             Item item = _mapPyToBoard(pyBoard[y][x].get<int>());
             obs.items[y][x] = item;
 
-            switch (item)
+            if (item == Item::FLAME)
             {
-                case Item::FLAME:
-                {
-                    Flame& f = obs.flames.NextPos();
-                    f.position.x = x;
-                    f.position.y = y;
-                    f.timeLeft = (int)pyState["flame_life"][y][x].get<float>();
-                    obs.flames.count++;
-                    break;
+                Flame& f = obs.flames.NextPos();
+                f.position.x = x;
+                f.position.y = y;
+                f.timeLeft = (int)pyObs["flame_life"][y][x].get<float>();
+                obs.flames.count++;
+            }
+            else if (item >= Item::AGENT0) 
+            {
+                int id = item - Item::AGENT0;
+                if (id != agentId) {
+                    // add visibility information about this agent
+                    AgentInfo& otherInfo = obs.agents[id];
+                    otherInfo.visible = true;
+                    otherInfo.x = x;
+                    otherInfo.y = y;
                 }
-                default: break;
             }
 
-            int life = (int)pyState["bomb_life"][y][x].get<float>();
+            int life = (int)pyObs["bomb_life"][y][x].get<float>();
             if (life != 0)
             {
                 Bomb& b = obs.bombs.NextPos();
@@ -344,10 +380,10 @@ void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
                 SetBombID(b, AGENT_COUNT);
                 //}
 
-                int blastStrength = (int)pyState["bomb_blast_strength"][y][x].get<float>() - 1;
+                int blastStrength = (int)pyObs["bomb_blast_strength"][y][x].get<float>() - 1;
                 SetBombStrength(b, blastStrength);
 
-                Direction direction = _mapPyToDir((int)pyState["bomb_moving_direction"][y][x].get<float>());
+                Direction direction = _mapPyToDir((int)pyObs["bomb_moving_direction"][y][x].get<float>());
                 SetBombDirection(b, direction);
 
                 SetBombTime(b, life);

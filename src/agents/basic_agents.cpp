@@ -16,7 +16,7 @@ RandomAgent::RandomAgent()
     intDist = std::uniform_int_distribution<int>(0, 5);
 }
 
-bboard::Move RandomAgent::act(const bboard::State* state)
+bboard::Move RandomAgent::act(const bboard::Observation* obs)
 {
     return static_cast<bboard::Move>(intDist(rng));
 }
@@ -32,7 +32,7 @@ HarmlessAgent::HarmlessAgent()
     intDist = std::uniform_int_distribution<int>(0, 4); // 6 is bomb
 }
 
-bboard::Move HarmlessAgent::act(const bboard::State* state)
+bboard::Move HarmlessAgent::act(const bboard::Observation* obs)
 {
     return static_cast<bboard::Move>(intDist(rng));
 }
@@ -41,7 +41,7 @@ bboard::Move HarmlessAgent::act(const bboard::State* state)
 //////////////////
 //  Lazy Agent  //
 //////////////////
-bboard::Move LazyAgent::act(const bboard::State* state)
+bboard::Move LazyAgent::act(const bboard::Observation* obs)
 {
     return bboard::Move::IDLE;
 }

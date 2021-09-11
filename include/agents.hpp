@@ -22,7 +22,7 @@ struct RandomAgent : bboard::Agent
 
     RandomAgent();
 
-    bboard::Move act(const bboard::State* state) override;
+    bboard::Move act(const bboard::Observation* obs) override;
 };
 
 
@@ -36,7 +36,7 @@ struct HarmlessAgent : bboard::Agent
 
     HarmlessAgent();
 
-    bboard::Move act(const bboard::State* state) override;
+    bboard::Move act(const bboard::Observation* obs) override;
 };
 
 /**
@@ -44,7 +44,7 @@ struct HarmlessAgent : bboard::Agent
  */
 struct LazyAgent : bboard::Agent
 {
-    bboard::Move act(const bboard::State* state) override;
+    bboard::Move act(const bboard::Observation* obs) override;
 };
 
 
@@ -70,8 +70,8 @@ struct SimpleAgent : bboard::Agent
     static const int rpCapacity = 4;
     bboard::FixedQueue<bboard::Position, rpCapacity> recentPositions;
 
-    virtual bboard::Move decide(const bboard::State* state);
-    bboard::Move act(const bboard::State* state) override;
+    virtual bboard::Move decide(const bboard::Observation* obs);
+    bboard::Move act(const bboard::Observation* obs) override;
 
     void reset() override;
 
@@ -92,7 +92,7 @@ struct SimpleUnbiasedAgent : SimpleAgent
     SimpleUnbiasedAgent();
     SimpleUnbiasedAgent(long seed);
 
-    bboard::Move decide(const bboard::State* state) override;
+    bboard::Move decide(const bboard::Observation* obs) override;
     void reset() override;
 };
 

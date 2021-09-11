@@ -110,13 +110,15 @@ TEST_CASE("Step Function", "[performance]")
 
 TEST_CASE("Episode Steps", "[performance]")
 {
-    int numEpisodes = 2000;
+    int numEpisodes = 10000;
     int totalSteps = 0;
 
     int seed = 42;
     std::mt19937 rng(seed);
 
     double elapsedMs = 0;
+
+    auto start = std::chrono::high_resolution_clock::now();
 
     for(int i = 0; i < numEpisodes; i++)
     {
@@ -134,6 +136,8 @@ TEST_CASE("Episode Steps", "[performance]")
         elapsedMs += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - t1).count();
     }
 
+    double totalElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
+
     std::string tst = "Episode step performance results:\n";
     std::cout << std::endl
               << FGRN(tst)
@@ -148,7 +152,8 @@ TEST_CASE("Episode Steps", "[performance]")
     std::cout << std::endl
               << "Tested with:                     "
               << type_name<decltype(b)>()
-              << "\nTime: " << elapsedMs << " ms\n";
+              << "\nTotal time in run: " << elapsedMs << " ms"
+              << "\nTotal time: " << totalElapsed << " ms\n";
 
     REQUIRE(1);
 }

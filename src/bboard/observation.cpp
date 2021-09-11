@@ -14,11 +14,9 @@ namespace bboard
 
 inline void copyAgentInfosTo(const State& state, Observation& observation)
 {
-    observation.agentInfos.count = 0;
     for(int i = 0; i < AGENT_COUNT; i++)
     {
-        observation.agentIDMapping[i] = i;
-        observation.agentInfos.AddElem(state.agents[i]);
+        observation.agents[i] = state.agents[i];
     }
 }
 
@@ -170,33 +168,51 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
             break;
 
         case bboard::AgentInfoVisibility::OnlySelf:
-            observation.agentInfos.AddElem(state.agents[agentID]);
-            std::fill_n(observation.agentIDMapping, AGENT_COUNT, -1);
-            observation.agentIDMapping[agentID] = 0;
-            break;
-
         case bboard::AgentInfoVisibility::InView:
-            AgentInfo self = state.agents[agentID];
+            const AgentInfo& self = state.agents[agentID];
             // add self
-            observation.agentIDMapping[agentID] = 0;
-            observation.agentInfos.AddElem(self);
+            observation.agents[agentID] = self;
             // add others if visible
             for(uint i = 0; i < AGENT_COUNT; i++)
             {
                 if(i == agentID) continue;
 
-                AgentInfo other = state.agents[i];
+                const AgentInfo& other = state.agents[i];
+                AgentInfo& otherObservation = observation.agents[i];
+
                 if(InViewRange(self.x, self.y, other.x, other.y, obsParams.agentViewSize))
                 {
-                    // visible
-                    observation.agentIDMapping[i] = observation.agentInfos.count;
-                    observation.agentInfos.AddElem(other);
+                    // other agent is visible
+                    switch (obsParams.agentInfoVisibility)
+                    {
+                    case bboard::AgentInfoVisibility::OnlySelf:
+                        // add visibility information but no stats
+                        otherObservation.visible = true;
+                        otherObservation.x = other.x;
+                        otherObservation.y = other.y;
+                        otherObservation.statsVisible = false;
+                        break;
+                    case bboard::AgentInfoVisibility::InView:
+                        // also add complete stats
+                        otherObservation = other;
+                        break;
+                    }
                 }
                 else
                 {
-                    // not visible
-                    observation.agentIDMapping[i] = -1;
+                    // other agent is not visible
+                    otherObservation.visible = false;
+                    otherObservation.statsVisible = false;
+
+                    // we don't know much about this agent and want to ignore it
+                    // use unique positions out of bounds to be compatible with the destination checks
+                    otherObservation.x = -i;
+                    otherObservation.y = -1;
                 }
+
+                // however, we always know whether this agent is alive and in which team it is
+                otherObservation.dead = !observation.isAlive[i];
+                otherObservation.team = other.team;
             }
             break;
     }
@@ -216,53 +232,28 @@ void Observation::ToState(State& state, GameMode gameMode) const
     int aliveAgents = 0;
     for(int i = 0; i < AGENT_COUNT; i++)
     {
-        AgentInfo& info = state.agents[i];
+        const AgentInfo& obsInfo = agents[i];
+        AgentInfo& stateInfo = state.agents[i];
 
-        int index = agentIDMapping[i];
-        if(index > -1)
+        stateInfo = obsInfo;
+
+        if (!stateInfo.statsVisible)
         {
-            // copy the available info
-            info = agentInfos[index];
-            info.ignore = false;
-        }
-        else
-        {
-            // we don't know much about this agent and want to ignore it
-            // use unique positions out of bounds to be compatible with the destination checks
-            info.x = -i;
-            info.y = -1;
-            info.won = false;
-            info.dead = !isAlive[i];
-            info.ignore = true;
-            // unknown: canKick, bombCount, maxBombCount, bombStrength
+            // assume maximal stats (this is just an arbitrary pessimistic heuristic!)
+            stateInfo.statsVisible = true;
+
+            stateInfo.bombCount = 0;
+            stateInfo.maxBombCount = MAX_BOMBS_PER_AGENT;
+            stateInfo.bombStrength = 10;
+            stateInfo.canKick = true;
         }
 
-        if(isAlive[i])
+        if(!obsInfo.dead)
         {
             aliveAgents += 1;
         }
     }
-
     state.aliveAgents = aliveAgents;
-
-    // search for agents and set their correct positions if available
-    // TODO: Is this necessary?
-    for(int y = 0; y < BOARD_SIZE; y++)
-    {
-        for(int x = 0; x < BOARD_SIZE; x++)
-        {
-            int item = items[y][x];
-            if(item >= Item::AGENT0)
-            {
-                int id = item - Item::AGENT0;
-                // std::cout << "Set agent " << id << " pos to " << y << ", " << x << std::endl;
-                AgentInfo& info = state.agents[id];
-                info.x = x;
-                info.y = y;
-                info.ignore = false;
-            }
-        }
-    }
 
     util::CheckTerminalState(state);
 }
@@ -295,7 +286,7 @@ void _addBombsFromLastStep(const Observation& last, Observation& current, const 
     if(!params.agentPartialMapView)
         return;
 
-    Position center = current.agentInfos[current.agentIDMapping[current.agentID]].GetPos();
+    Position center = current.agents[current.agentID].GetPos();
 
     std::unordered_set<Position> positions(current.bombs.count);
 
@@ -338,7 +329,7 @@ void _addFlamesFromLastStep(const Observation& last, Observation& current, const
     if(!params.agentPartialMapView)
         return;
 
-    Position center = current.agentInfos[current.agentIDMapping[current.agentID]].GetPos();
+    Position center = current.agents[current.agentID].GetPos();
 
     std::unordered_set<Position> positions(current.flames.count);
 
@@ -477,9 +468,9 @@ void Observation::Merge(const Observation& last, const ObservationParameters& pa
 
 void Observation::Kill(int agentID)
 {
-    if(agentIDMapping[agentID] != -1)
+    if(agents[agentID].visible)
     {
-        agentInfos[agentIDMapping[agentID]].dead = true;
+        agents[agentID].dead = true;
     }
 
     isAlive[agentID] = false;

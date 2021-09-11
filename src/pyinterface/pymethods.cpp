@@ -63,15 +63,16 @@ int agent_act(char* json, bool jsonIsState)
     {
         // std::cout << "json > state" << std::endl;
         StateFromJSON(PyInterface::state, jsonString, GameMode::FreeForAll);
+        ObservationParameters fullyObservable;
+        Observation::Get(PyInterface::state, agent->id, fullyObservable, PyInterface::observation);
     }
     else
     {
         // std::cout << "json > obs" << std::endl;
         ObservationFromJSON(PyInterface::observation, jsonString, agent->id);
-        PyInterface::observation.ToState(PyInterface::state, GameMode::FreeForAll);
     }
 
-    bboard::Move move = agent->act(&PyInterface::state);
+    bboard::Move move = agent->act(&PyInterface::observation);
     // bboard::PrintState(&PyInterface::state);
     // std::cout << "Agent " << agent->id << " selects action " << (int)move << std::endl;
     return (int)move;

@@ -219,8 +219,8 @@ int ResolveDependencies(const State* state, Position des[AGENT_COUNT],
     {
         const AgentInfo& a1 = state->agents[i];
 
-        // dead and ignored agents are handled as roots
-        if(a1.dead || a1.ignore)
+        // dead and not visible agents are handled as roots
+        if(a1.dead || !a1.visible)
         {
             chain[rootCount] = i;
             rootCount++;
@@ -232,7 +232,7 @@ int ResolveDependencies(const State* state, Position des[AGENT_COUNT],
         {
             const AgentInfo& a2 = state->agents[j];
 
-            if(i == j || a2.dead || a2.ignore) continue;
+            if(i == j || a2.dead || !a2.visible) continue;
 
             if(des[i].x == a2.x && des[i].y == a2.y)
             {
@@ -412,7 +412,7 @@ void MoveAgent(State* state, const int i, const Move m, const Position fixedDest
 {
     AgentInfo& a = state->agents[i];
 
-    if(a.dead || a.ignore)
+    if(a.dead || !a.visible)
     {
         return;
     }

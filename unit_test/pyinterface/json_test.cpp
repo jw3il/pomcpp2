@@ -35,7 +35,7 @@ TEST_CASE("Reconstruct State", "[json]")
     std::cout << std::endl << "Reconstructed state:" << std::endl;
     bboard::PrintState(&reconstructedState);
 
-    std::cout << realState.aliveAgents << std::endl;
+    std::cout << "Alive agents: " << realState.aliveAgents << std::endl;
     REQUIRE(reconstructedState.bombs.count == realState.bombs.count);
     REQUIRE(realState.aliveAgents == reconstructedState.aliveAgents);
     for(auto i = 0; i < bboard::AGENT_COUNT; i++)

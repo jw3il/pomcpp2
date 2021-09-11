@@ -51,7 +51,7 @@ struct RMap
  * @brief FillRMap Fills a given RMap. Uses BFS. Additional
  * info is in map.info
  */
-void FillRMap(const State& s, RMap& r, int agentID);
+void FillRMap(const Board& b, RMap& r, int agentID);
 
 /**
  * @brief IsReachable Returns true if the given position is reachable
@@ -70,13 +70,13 @@ inline bool IsReachable(RMap& r, int x, int y)
  * @brief IsAdjacentEnemy returns true if the agent is within a
  * given manhattan-distance from an enemey
  */
-bool IsAdjacentEnemy(const State& state, int agentID, int distance);
+bool IsAdjacentEnemy(const Board& b, int agentID, int distance);
 
 /**
  * @brief IsAdjacentEnemy returns true if the agent is within a
  * given manhattan-distance from the specified item
  */
-bool IsAdjacentItem(const State& state, int agentID, int distance, Item item);
+bool IsAdjacentItem(const Board& b, int agentID, int distance, Item item);
 
 /**
  * @brief MoveTowardsPosition Selects a move the brings you closest
@@ -95,7 +95,7 @@ Move MoveTowardsPosition(const RMap& r, const Position& position);
  * @param radius The search radius
  * @return IDLE if no safe place could be found
  */
-Move MoveTowardsSafePlace(const State& state, const RMap& r, int radius);
+Move MoveTowardsSafePlace(const Board& b, const RMap& r, int radius);
 
 /**
  * @brief MoveTowardsPowerup Returns the move that brings the agent
@@ -105,7 +105,7 @@ Move MoveTowardsSafePlace(const State& state, const RMap& r, int radius);
  * paths. See bboard::strategy::RMap for more info
  * @param radius Maximum search distance (manhattan)
  */
-Move MoveTowardsPowerup(const State& state, const RMap& r, int radius);
+Move MoveTowardsPowerup(const Board& b, const RMap& r, int radius);
 
 /**
  * @brief MoveTowardsEnemy Returns the move that brings the agent
@@ -115,13 +115,13 @@ Move MoveTowardsPowerup(const State& state, const RMap& r, int radius);
  * paths. See bboard::strategy::RMap for more info
  * @param radius Maximum search distance (manhattan)
  */
-Move MoveTowardsEnemy(const State& state, const RMap& r, int radius);
+Move MoveTowardsEnemy(const Board& b, const RMap& r, int radius);
 
 /**
  * @brief FilterSafeDirections Adds all possible safe moves to the
  * queue
  */
-void SafeDirections(const State& state, FixedQueue<Move, MOVE_COUNT>& q, int x, int y);
+void SafeDirections(const Board& b, FixedQueue<Move, MOVE_COUNT>& q, int x, int y);
 
 /**
  * @brief SortDirections Sort a move-queue, where unvisited states are
@@ -155,8 +155,8 @@ void SortDirections(FixedQueue<Move, MOVE_COUNT>& q,
  * @brief IsSafe Returns true if the agent is endangered (in range of a bomb).
  * The int-value says how much time the agent has to flee.
  */
-int IsInDanger(const State& state, int agentID);
-int IsInDanger(const State& state, int x, int y);
+int IsInDanger(const Board& b, int agentID);
+int IsInDanger(const Board& b, int x, int y);
 
 /**
  * @brief IsInBombRange Returns True if the given position is in range

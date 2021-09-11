@@ -87,6 +87,11 @@ void Environment::MakeGame(std::array<Agent*, AGENT_COUNT> a, GameMode gameMode,
     hasStarted = true;
 }
 
+void Environment::SetObservationParameters(ObservationParameters parameters)
+{
+    observationParameters = parameters;
+}
+
 void Environment::RunGame(int steps, bool asyncAct, bool render, bool renderClear, bool renderInteractive, int renderWaitMs)
 {
     int startSteps = state->timeStep;
@@ -121,9 +126,9 @@ void Environment::RunGame(int steps, bool asyncAct, bool render, bool renderClea
     }
 }
 
-void ProxyAct(Move& writeBack, Agent& agent, State& state)
+void ProxyAct(Move& writeBack, Agent& agent, Environment& e)
 {
-    writeBack = agent.act(&state);
+    writeBack = agent.act(e.GetObservation(agent.id));
 }
 
 void CollectMovesAsync(Move m[AGENT_COUNT], Environment& e)
@@ -136,7 +141,7 @@ void CollectMovesAsync(Move m[AGENT_COUNT], Environment& e)
             threads[i] = std::thread(ProxyAct,
                                      std::ref(m[i]),
                                      std::ref(*e.GetAgent(i)),
-                                     std::ref(e.GetState()));
+                                     std::ref(e));
         }
     }
 
@@ -179,7 +184,7 @@ void Environment::Step(bool asyncAct)
         {
             if(!state->agents[i].dead)
             {
-                m[i] = agents[i]->act(state.get());
+                m[i] = agents[i]->act(GetObservation(i));
                 lastMoves[i] = m[i];
                 hasActed[i] = true;
             }
@@ -202,6 +207,13 @@ void Environment::Print(bool clear)
 State& Environment::GetState() const
 {
     return *state.get();
+}
+
+const Observation* Environment::GetObservation(uint agentID)
+{
+    Observation& agentObs = observations[agentID];
+    Observation::Get(*state.get(), agentID, observationParameters, agentObs);
+    return &agentObs;
 }
 
 Agent* Environment::GetAgent(uint agentID) const

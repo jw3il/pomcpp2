@@ -40,11 +40,11 @@ bool _HasRPLoop(SimpleAgent& me)
     return true;
 }
 
-Move _MoveSafeOneSpace(SimpleAgent& me, const State* state)
+Move _MoveSafeOneSpace(SimpleAgent& me, const Board& b)
 {
-    const AgentInfo& a = state->agents[me.id];
+    const AgentInfo& a = b.agents[me.id];
     me.moveQueue.count = 0;
-    SafeDirections(*state, me.moveQueue, a.x, a.y);
+    SafeDirections(b, me.moveQueue, a.x, a.y);
     SortDirections(me.moveQueue, me.recentPositions, a.x, a.y);
 
     if(me.moveQueue.count == 0)
@@ -54,19 +54,21 @@ Move _MoveSafeOneSpace(SimpleAgent& me, const State* state)
 }
 
 
-Move SimpleAgent::decide(const State* state)
+Move SimpleAgent::decide(const Observation* obs)
 {
-    const AgentInfo& a = state->agents[id];
-    FillRMap(*state, r, id);
+    const Board& b = *obs;
+    const AgentInfo& a = obs->agents[id];
+    
+    FillRMap(b, r, id);
 
-    danger = IsInDanger(*state, id);
+    danger = IsInDanger(b, id);
 
     if(danger > 0) // ignore danger if not too high
     {
-        Move m = MoveTowardsSafePlace(*state, r, danger);
+        Move m = MoveTowardsSafePlace(b, r, danger);
         Position p = util::DesiredPosition(a.x, a.y, m);
-        if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(state->items[p.y][p.x]) &&
-                _safe_condition(IsInDanger(*state, p.x, p.y), 2))
+        if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(b.items[p.y][p.x]) &&
+                _safe_condition(IsInDanger(b, p.x, p.y), 2))
         {
             return m;
         }
@@ -74,12 +76,12 @@ Move SimpleAgent::decide(const State* state)
     else if(a.bombCount < a.maxBombCount)
     {
         //prioritize enemy destruction
-        if(IsAdjacentEnemy(*state, id, 1))
+        if(IsAdjacentEnemy(b, id, 1))
         {
             return Move::BOMB;
         }
 
-        if(IsAdjacentEnemy(*state, id, 7))
+        if(IsAdjacentEnemy(b, id, 7))
         {
             // if you're stuck in a loop try to break out by randomly selecting
             // an action ( we could IDLE but the mirroring of agents is tricky)
@@ -87,30 +89,29 @@ Move SimpleAgent::decide(const State* state)
                 return Move(rng() % 5);
             }
 
-            Move m = MoveTowardsEnemy(*state, r, 7);
+            Move m = MoveTowardsEnemy(b, r, 7);
             Position p = util::DesiredPosition(a.x, a.y, m);
-            if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(state->items[p.y][p.x]) &&
-                    _safe_condition(IsInDanger(*state, p.x, p.y), 5))
+            if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(b.items[p.y][p.x]) &&
+                    _safe_condition(IsInDanger(b, p.x, p.y), 5))
             {
                 return m;
             }
         }
 
-        if(IsAdjacentItem(*state, id, 1, Item::WOOD))
+        if(IsAdjacentItem(b, id, 1, Item::WOOD))
         {
             return Move::BOMB;
         }
     }
 
-    // TODO: Collect powerups
-
-    return _MoveSafeOneSpace(*this, state);
+    return _MoveSafeOneSpace(*this, b);
 }
 
-Move SimpleAgent::act(const State* state)
+Move SimpleAgent::act(const Observation* obs)
 {
-    const AgentInfo& a = state->agents[id];
-    Move m = decide(state);
+    const AgentInfo& a = obs->agents[id];
+
+    Move m = decide(obs);
     Position p = util::DesiredPosition(a.x, a.y, m);
 
     if(recentPositions.RemainingCapacity() == 0)
