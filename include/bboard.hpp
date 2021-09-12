@@ -844,6 +844,38 @@ public:
 };
 
 /**
+ * @brief A message that can be transmitted between agents.
+ */
+class Message
+{
+public:
+    const int sender;
+    const int receiver;
+
+    Message(int sender, int receiver);
+    virtual ~Message() = default;
+};
+
+
+/**
+ * @brief A message that is compatible to the messages used in the python environment. Consists of two numbers from 0 to 7.
+ */
+class PythonEnvMessage : public Message
+{
+private:
+    bool valid;
+
+public:
+    const std::array<int, 2> content;
+
+    PythonEnvMessage(int sender, int receiver, std::array<int, 2> content);
+    
+    static std::unique_ptr<PythonEnvMessage> FromJSON(std::string json);
+    std::string ToJSON();
+    bool IsValid();
+};
+
+/**
  * @brief The Agent struct defines a behaviour. For a given
  * state it will return a Move.
  */
@@ -852,6 +884,37 @@ struct Agent
     virtual ~Agent() {}
 
     int id = -1;
+
+    /**
+     * @brief Incoming messages are placed into the message inbox.
+     */
+    std::vector<std::unique_ptr<Message>> inbox;
+
+    /**
+     * @brief Outgoing messages should be placed into the message outbox. 
+     */
+    std::vector<std::unique_ptr<Message>> outbox;
+
+    /**
+     * @brief Send a message object. Claims ownership and places it in the outbox.
+     * @param msg The message that shall be sent 
+     */
+    inline void Send(Message* msg)
+    {
+        outbox.push_back(std::unique_ptr<Message>(msg));
+    }
+
+    /**
+     * @brief Try to read a message of a given type from the inbox.
+     * @param inboxIndex The index of the message in the inbox
+     * @param T The (expected) type of the message
+     * @return A pointer to the message (nullptr if the message is of a different type)
+     */
+    template<typename T>
+    inline T* TryRead(int inboxIndex)
+    {
+        return dynamic_cast<T*>(inbox[inboxIndex].get());
+    }
 
     /**
      * This method defines the behaviour of the Agent.
@@ -880,7 +943,6 @@ class Environment
 {
 
 private:
-
     std::unique_ptr<State> state;
     std::array<Agent*, AGENT_COUNT> agents;
     std::array<Observation, AGENT_COUNT> observations;
@@ -889,6 +951,7 @@ private:
 
     GameMode gameMode;
     ObservationParameters observationParameters;
+    bool communication = false;
 
     // Current State
     bool hasStarted = false;
@@ -913,6 +976,11 @@ public:
      * @brief Sets the observation parameters that are used to create the observations for all agents.
      */
     void SetObservationParameters(ObservationParameters parameters);
+
+    /**
+     * @brief Defines whether communication is allowed.
+     */
+    void SetCommunication(bool communication);
 
     /**
      * @brief RunGame simulates some steps in the game.

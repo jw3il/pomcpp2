@@ -92,6 +92,11 @@ void Environment::SetObservationParameters(ObservationParameters parameters)
     observationParameters = parameters;
 }
 
+void Environment::SetCommunication(bool communication)
+{
+    this->communication = communication;
+}
+
 void Environment::RunGame(int steps, bool asyncAct, bool render, bool renderClear, bool renderInteractive, int renderWaitMs)
 {
     int startSteps = state->timeStep;
@@ -172,6 +177,36 @@ void Environment::Step(bool asyncAct)
         return;
     }
 
+    if(communication)
+    {
+        // clear message inboxes
+        for(uint i = 0; i < AGENT_COUNT; i++)
+        {
+            agents[i]->inbox.clear();
+        }
+
+        // send messages
+        for(uint i = 0; i < AGENT_COUNT; i++)
+        {
+            for(uint a = 0; a < agents[i]->outbox.size(); a++)
+            {
+                auto ptr = std::move(agents[i]->outbox[a]);
+                auto m = ptr.get();
+
+                if(m->sender != i)
+                {
+                    std::cout << "Warning: Agent " << i << " tried to send a message as agent " << m->sender;
+                    std::cout << ". The message has been dropped." << std::endl;
+                    continue;
+                }
+
+                agents[m->receiver]->inbox.push_back(std::move(ptr));
+            }
+
+            agents[i]->outbox.clear();
+        }
+    }
+
     Move m[AGENT_COUNT];
 
     if(asyncAct)
@@ -225,8 +260,16 @@ void Environment::SetAgents(std::array<Agent*, AGENT_COUNT> agents)
 {
     for(uint i = 0; i < AGENT_COUNT; i++)
     {
-        agents[i]->id = int(i);
-        agents[i]->reset();
+        Agent* a = agents[i];
+
+        if(communication)
+        {
+            a->inbox.clear();
+            a->outbox.clear();
+        }
+
+        a->id = int(i);
+        a->reset();
     }
 
     this->agents = agents;
