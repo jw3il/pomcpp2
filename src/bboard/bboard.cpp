@@ -89,23 +89,9 @@ inline bool IsOutOfBounds(const int& x, const int& y)
 
 void SetTeams(AgentInfo agents[AGENT_COUNT], GameMode gameMode)
 {
-    switch(gameMode)
+    for(int i = 0; i < AGENT_COUNT; i++)
     {
-        case GameMode::FreeForAll:
-            for(int i = 0; i < AGENT_COUNT; i++)
-            {
-                agents[i].team = 0;
-            }
-            break;
-        case GameMode::TwoTeams:
-            for(int i = 0; i < AGENT_COUNT; i++)
-            {
-                agents[i].team = (i % 2 == 0) ? 1 : 2;
-            }
-            break;
-        default:
-            throw std::runtime_error("Unknown game mode "
-                                     + std::to_string((int)gameMode));
+        agents[i].team = GetTeam(gameMode, i);
     }
 }
 
@@ -113,13 +99,22 @@ void SetTeams(AgentInfo agents[AGENT_COUNT], GameMode gameMode)
 // Board Methods //
 ///////////////////
 
-void Board::CopyFrom(const Board& board)
+void Board::CopyFrom(const Board& board, bool copyAgents)
 {
     std::copy_n(&board.items[0][0], BOARD_SIZE * BOARD_SIZE, &items[0][0]);
+    
     bombs = board.bombs;
     flames = board.flames;
     timeStep = board.timeStep;
     currentFlameTime = board.currentFlameTime;
+
+    if(copyAgents)
+    {
+        for(uint i = 0; i < AGENT_COUNT; i++)
+        {
+            agents[i] = board.agents[i];
+        }
+    }
 }
 
 void Board::PlantBombModifiedLife(int x, int y, int id, int strength, int lifeTime, bool setItem)

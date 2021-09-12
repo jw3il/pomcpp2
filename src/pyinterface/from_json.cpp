@@ -148,26 +148,13 @@ void _flameFromJSON(const nlohmann::json& pyFlame, Flame& flame)
     flame.timeLeft = pyFlame["life"].get<int>() + 1;
 }
 
-inline int _getTeam(GameMode gameMode, int agentID)
-{
-    switch (gameMode)
-    {
-    case GameMode::FreeForAll:
-        return 0;
-    case GameMode::TwoTeams:
-        return (agentID % 2 == 0) ? 1 : 2;
-    default:
-        std::cout << "Warning: Unknown game mode mode '" << (int)gameMode << "'" << std::endl;
-        return 0;
-    }
-}
-
-void StateFromJSON(State& state, const std::string& json, GameMode gameMode)
+void StateFromJSON(State& state, const std::string& json)
 {
     // attributes: board_size, step_count, board, agents, bombs, flames, items, intended_actions
     const nlohmann::json pyState = nlohmann::json::parse(json);
-
     _checkKeyValue(pyState, "board_size", BOARD_SIZE);
+
+    GameMode gameMode = _mapPyToGameMode(pyState["game_type"].get<int>());
 
     state.timeStep = pyState["step_count"];
 
@@ -211,7 +198,7 @@ void StateFromJSON(State& state, const std::string& json, GameMode gameMode)
             state.aliveAgents++;
         }
 
-        info.team = _getTeam(gameMode, i);
+        info.team = GetTeam(gameMode, i);
 
         if(!info.dead && state.items[info.y][info.x] < Item::AGENT0)
         {
@@ -264,10 +251,10 @@ void StateFromJSON(State& state, const std::string& json, GameMode gameMode)
     state.currentFlameTime = util::OptimizeFlameQueue(state);
 }
 
-State StateFromJSON(const std::string& json, GameMode gameMode)
+State StateFromJSON(const std::string& json)
 {
     State state;
-    StateFromJSON(state, json, gameMode);
+    StateFromJSON(state, json);
     return state;
 }
 
@@ -292,7 +279,7 @@ void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
         // assume that agent is dead for now (undone for alive agents later)
         info.dead = true;
 
-        info.team = _getTeam(gameMode, i);
+        info.team = GetTeam(gameMode, i);
 
         if (i == agentId) continue;
 

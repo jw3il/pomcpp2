@@ -36,8 +36,9 @@ class CppAgent(agents.BaseAgent):
         self.env = env
 
     def get_state_json(self):
-        env = self.env
+        env: Pomme = self.env
         state = {
+            'game_type': env._game_type,
             'board_size': env._board_size,
             'step_count': env._step_count,
             'board': env._board,

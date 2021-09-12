@@ -5,7 +5,8 @@ from pypomcpp.cppagent import CppAgent
 from util import ffa_evaluate
 from shutil import copyfile
 
-lib_path = "./Release/libpomcpp.so"
+lib_path = "./libpomcpp.so"
+
 
 def create_lib_copy():
     if hasattr(create_lib_copy, "calls"):

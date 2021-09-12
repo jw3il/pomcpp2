@@ -529,8 +529,9 @@ public:
     /**
      * @brief CopyFrom Copies the elements from the given board object to this board.
      * @param board The board which should be copied.
+     * @param copyAgents Whether to copy the AgentInfo.
      */
-    void CopyFrom(const Board& board);
+    void CopyFrom(const Board& board, bool copyAgents = true);
 
     /**
      * @brief Checks whether the agents with the given ids are enemies.
@@ -663,6 +664,25 @@ enum class GameMode
     FreeForAll = 0,
     TwoTeams
 };
+
+/**
+ * @brief Gets the team of the given agent according to the game mode.
+ * @param gameMode The game mode
+ * @param agentID An agent id
+ */
+inline int GetTeam(GameMode gameMode, int agentID)
+{
+    switch (gameMode)
+    {
+    case GameMode::FreeForAll:
+        return 0;
+    case GameMode::TwoTeams:
+        return (agentID % 2 == 0) ? 1 : 2;
+    default:
+        std::cout << "Warning: Unknown game mode mode '" << (int)gameMode << "'" << std::endl;
+        return 0;
+    }
+}
 
 /**
  * @brief SetTeams Sets the teams of the agents according to the given game mode.
@@ -824,9 +844,8 @@ public:
     /**
      * @brief ToState Converts this observation to an (potentially incomplete) state object. This allows you to execute steps on that observation,
      * @param state The state object which will be used to save the state
-     * @param gameMode The target gameMode (used to define the teams)
      */
-    void ToState(State& state, GameMode gameMode) const;
+    void ToState(State& state) const;
 
     /**
      * @brief Merge Merges another observation into this observation.

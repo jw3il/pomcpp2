@@ -12,18 +12,12 @@
 namespace bboard
 {
 
-inline void _copyAgentInfosTo(const State& state, Observation& observation)
+inline void _copyAgentInfos(const Board& from, Board& to)
 {
-    for(int i = 0; i < AGENT_COUNT; i++)
+    for(uint i = 0; i < AGENT_COUNT; i++)
     {
-        observation.agents[i] = state.agents[i];
+        to.agents[i] = from.agents[i];
     }
-}
-
-inline void _copyTo(const State& state, Observation& observation)
-{
-    observation.CopyFrom(state);
-    _copyAgentInfosTo(state, observation);
 }
 
 inline void _filterFlames(const State& state, Observation& obs, Position pos, int viewRange)
@@ -56,7 +50,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
     // fully observable environment
     if(obsParams.exposePowerUps && !obsParams.agentPartialMapView && obsParams.agentInfoVisibility == AgentInfoVisibility::All)
     {
-        _copyTo(state, observation);
+        observation.CopyFrom(state);
         return;
     }
 
@@ -130,8 +124,8 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
     }
     else
     {
-        // full view on the arena (including optimized flames)
-        observation.CopyFrom(state);
+        // full view on the arena
+        observation.CopyFrom(state, false);
 
         if(!obsParams.exposePowerUps)
         {
@@ -154,7 +148,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
 
     switch (obsParams.agentInfoVisibility) {
         case bboard::AgentInfoVisibility::All:
-            _copyAgentInfosTo(state, observation);
+            _copyAgentInfos(state, observation);
             break;
 
         case bboard::AgentInfoVisibility::OnlySelf:
@@ -208,16 +202,13 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
     }
 }
 
-void Observation::ToState(State& state, GameMode gameMode) const
+void Observation::ToState(State& state) const
 {
     // initialize the board of the state
     state.CopyFrom(*this);
 
     // optimize flame queue
     state.currentFlameTime = util::OptimizeFlameQueue(state);
-
-    // set the correct teams
-    SetTeams(state.agents, gameMode);
 
     int aliveAgents = 0;
     for(int i = 0; i < AGENT_COUNT; i++)

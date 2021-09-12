@@ -61,14 +61,14 @@ int agent_act(char* json, bool jsonIsState)
     std::string jsonString(json);
     if(jsonIsState)
     {
-        // std::cout << "json > state" << std::endl;
-        StateFromJSON(PyInterface::state, jsonString, GameMode::FreeForAll);
+        // std::cout << "json > state " << jsonString << std::endl;
+        StateFromJSON(PyInterface::state, jsonString);
         ObservationParameters fullyObservable;
         Observation::Get(PyInterface::state, agent->id, fullyObservable, PyInterface::observation);
     }
     else
     {
-        // std::cout << "json > obs" << std::endl;
+        // std::cout << "json > obs " << jsonString << std::endl;
         ObservationFromJSON(PyInterface::observation, jsonString, agent->id);
     }
 

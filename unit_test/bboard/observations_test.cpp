@@ -99,7 +99,7 @@ TEST_CASE("Round trip", "[observation]")
 
     // convert to state
     State s2;
-    obs.ToState(s2, GameMode::FreeForAll);
+    obs.ToState(s2);
 
     // fog is still there
     REQUIRE_CORRECT_FOG(s, 2, s2, params.agentViewSize);
@@ -121,7 +121,7 @@ TEST_CASE("Planning Step", "[observation]")
 
     s.Init(GameMode::FreeForAll, 1234, true);
     Observation::Get(s, 0, params, obs);
-    obs.ToState(s2, GameMode::FreeForAll);
+    obs.ToState(s2);
 
     Move m[4];
     m[0] = m[1] = m[2] = m[3] = Move::IDLE;
