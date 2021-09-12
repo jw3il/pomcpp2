@@ -84,7 +84,7 @@ class CppAgent(agents.BaseAgent):
     def init_agent(self, id, game_type):
         super().init_agent(id, game_type)
 
-        if game_type != pommerman.constants.GameType.FFA:
+        if game_type != pommerman.constants.GameType.FFA and game_type != pommerman.constants.GameType.Team:
             raise ValueError(f"GameType {str(game_type)} is not supported!")
 
         self.id = id

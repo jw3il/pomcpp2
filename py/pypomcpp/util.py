@@ -1,9 +1,10 @@
 import pommerman
+from pommerman.constants import GameType
 from pommerman.envs.v0 import Pomme
 import time
 import numpy as np
 
-def ffa_evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
+def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
     """
     Evaluates the given pommerman environment (already includes the agents).
 
@@ -52,20 +53,46 @@ def ffa_evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
             ))
 
             if i_episode % 10 == 9 and i_episode != episodes - 1:
-                ffa_print_stats(results, steps, i_episode + 1)
+                print_stats(env, results, steps, i_episode)
 
     env.close()
 
     if verbose:
         delta = time.time() - start
         print("Total time: {:.2f} sec".format(delta))
-        ffa_print_stats(results, steps, episodes)
+        print_stats(env, results, steps, episodes)
 
     return results
 
 
+def print_stats(env, results, steps, episodes):
+    if env._game_type == GameType.FFA:
+        ffa_print_stats(results, steps, episodes)
+    elif env._game_type == GameType.Team or env._game_type == GameType.TeamRadio:
+        team_print_stats(results, steps, episodes)
+
+
+def team_print_stats(results, steps, episodes):
+    num_won, num_ties = get_stats(results, episodes)
+    assert num_won[0] == num_won[2]
+    assert num_won[1] == num_won[3]
+
+    print("Evaluated {} episodes".format(episodes))
+    print("Average steps: {}".format(steps[:episodes].mean()))
+
+    total_won = int(np.sum(num_won) / 2)
+    print("Wins: {} ({:.2f}%)".format(total_won, total_won / episodes * 100))
+    print("> Team 0 (Agent 0, 2): {} ({:.2f}%)".format(num_won[0], num_won[0] / total_won * 100))
+    print("> Team 1 (Agent 1, 3): {} ({:.2f}%)".format(num_won[1], num_won[1] / total_won * 100))
+
+    num_ties = np.sum(results[:, 0] == pommerman.constants.Result.Tie.value)
+    print("Ties: {} ({:.2f}%)".format(num_ties, num_ties / episodes * 100))
+
+    assert np.sum(num_won) / 2 + num_ties == episodes
+
+
 def ffa_print_stats(results, steps, episodes):
-    num_won, num_ties = ffa_get_stats(results, episodes)
+    num_won, num_ties = get_stats(results, episodes)
 
     print("Evaluated {} episodes".format(episodes))
     print("Average steps: {}".format(steps[:episodes].mean()))
@@ -78,13 +105,13 @@ def ffa_print_stats(results, steps, episodes):
     num_ties = np.sum(results[:, 0] == pommerman.constants.Result.Tie.value)
     print("Ties: {} ({:.2f}%)".format(num_ties, num_ties / episodes * 100))
 
+    assert np.sum(num_won) + num_ties == episodes
 
-def ffa_get_stats(results, episodes):
+
+def get_stats(results, episodes):
     # Count how often each agent achieved a final reward of "1"
     num_won = np.sum(results[0:episodes, 1:] == 1, axis=0)
     # In a tie, every player receives -1 reward
     num_ties = np.sum(results[0:episodes, 0] == pommerman.constants.Result.Tie.value)
-
-    assert np.sum(num_won) + num_ties == episodes
 
     return num_won, num_ties

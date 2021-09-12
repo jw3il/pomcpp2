@@ -2,7 +2,7 @@ import pommerman
 import pommerman.agents as agents
 from pommerman.agents.simple_agent import SimpleAgent
 from pypomcpp.cppagent import CppAgent
-from util import ffa_evaluate
+from util import evaluate
 from shutil import copyfile
 
 lib_path = "./libpomcpp.so"
@@ -30,6 +30,8 @@ agent_list = [
 
 # Make the "Free-For-All" environment using the agent list
 env = pommerman.make('PommeFFACompetition-v0', agent_list)
+# env = pommerman.make('PommeTeam-v0', agent_list)
+# env = pommerman.make('PommeRadioCompetition-v2', agent_list)
 
 use_env_state = False
 
@@ -38,4 +40,4 @@ if use_env_state:
         if isinstance(a, CppAgent):
             a.use_env_state(env)
 
-ffa_evaluate(env, 10, True, False)
+evaluate(env, 10, True, False)
