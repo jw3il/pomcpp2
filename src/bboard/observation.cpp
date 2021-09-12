@@ -12,7 +12,7 @@
 namespace bboard
 {
 
-inline void copyAgentInfosTo(const State& state, Observation& observation)
+inline void _copyAgentInfosTo(const State& state, Observation& observation)
 {
     for(int i = 0; i < AGENT_COUNT; i++)
     {
@@ -20,10 +20,33 @@ inline void copyAgentInfosTo(const State& state, Observation& observation)
     }
 }
 
-inline void copyTo(const State& state, Observation& observation)
+inline void _copyTo(const State& state, Observation& observation)
 {
     observation.CopyFrom(state);
-    copyAgentInfosTo(state, observation);
+    _copyAgentInfosTo(state, observation);
+}
+
+inline void _filterFlames(const State& state, Observation& obs, Position pos, int viewRange)
+{
+    obs.currentFlameTime = -1;
+    obs.flames.count = 0;
+
+    assert(state.currentFlameTime != -1);
+
+    int cumulativeTimeLeft = 0;
+    for(int i = 0; i < state.flames.count; i++)
+    {
+        Flame f = state.flames[i];
+        cumulativeTimeLeft += f.timeLeft;
+
+        if(InViewRange(f.position, pos.x, pos.y, viewRange))
+        {
+            f.timeLeft = cumulativeTimeLeft;
+            obs.flames.AddElem(f);
+        }
+    }
+
+    obs.currentFlameTime = util::OptimizeFlameQueue(obs);
 }
 
 void Observation::Get(const State& state, const uint agentID, const ObservationParameters obsParams, Observation& observation)
@@ -33,7 +56,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
     // fully observable environment
     if(obsParams.exposePowerUps && !obsParams.agentPartialMapView && obsParams.agentInfoVisibility == AgentInfoVisibility::All)
     {
-        copyTo(state, observation);
+        _copyTo(state, observation);
         return;
     }
 
@@ -103,23 +126,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
         }
 
         // and flames
-        observation.flames.count = 0;
-        int cumulativeFlameTime = 0;
-        for(int i = 0; i < state.flames.count; i++)
-        {
-            Flame f = state.flames[i];
-            cumulativeFlameTime += f.timeLeft;
-
-            // to abs flame time
-            f.timeLeft = cumulativeFlameTime;
-
-            if(InViewRange(f.position, info.x, info.y, obsParams.agentViewSize))
-            {
-                observation.flames.AddElem(f);
-            }
-        }
-        // we now have unoptimized flames
-        observation.currentFlameTime = -1;
+        _filterFlames(state, observation, info.GetPos(), obsParams.agentViewSize);
     }
     else
     {
@@ -147,7 +154,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
 
     switch (obsParams.agentInfoVisibility) {
         case bboard::AgentInfoVisibility::All:
-            copyAgentInfosTo(state, observation);
+            _copyAgentInfosTo(state, observation);
             break;
 
         case bboard::AgentInfoVisibility::OnlySelf:

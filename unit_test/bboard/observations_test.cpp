@@ -194,6 +194,65 @@ void _print_step(const State& s, const Observation& o)
     _print_flames(o);
 }
 
+TEST_CASE("Hidden Flames", "[observation]")
+{
+    bool print = false;
+
+    ObservationParameters params;
+    params.agentPartialMapView = true;
+    params.agentViewSize = 1;
+
+    State s;
+    s.Clear(Item::PASSAGE);
+    s.timeStep = 0;
+
+    // 0 1
+    // 3 2
+    s.PutAgentsInCorners(0, 1, 2, 3, 1);
+
+    Move m[AGENT_COUNT];
+    std::fill_n(m, AGENT_COUNT, Move::IDLE);
+    m[0] = Move::BOMB;
+
+    // place a bomb
+    bboard::Step(&s, m);
+
+    // move out of range
+    m[0] = Move::RIGHT;
+    bboard::Step(&s, m);
+    bboard::Step(&s, m);
+
+    // wait until the bomb explodes
+    m[0] = Move::IDLE;
+    for (int i = 0; i < bboard::BOMB_LIFETIME - 2; i++)
+    {
+        bboard::Step(&s, m);
+    }
+
+    REQUIRE(bboard::IS_FLAME(s.items[1][1]));
+    REQUIRE(bboard::IS_FLAME(s.items[1][2]));
+
+    if (print) {
+        bboard::PrintBoard(&s);
+        _print_flames(s);
+    }
+
+    Observation obs;
+    Observation::Get(s, 0, params, obs);
+
+    if (print) {
+        bboard::PrintBoard(&obs);
+        _print_flames(obs);
+    }
+
+    // there is only one flame visible
+    REQUIRE(obs.items[1][1] == Item::FOG);
+    REQUIRE(bboard::IS_FLAME(obs.items[1][2]));
+
+    // and the timeLeft of this flame is correct
+    REQUIRE(obs.flames[0].timeLeft == bboard::FLAME_LIFETIME);
+}
+
 TEST_CASE("Merge Observations", "[observation]")
 {
     bool print = false;
@@ -204,6 +263,7 @@ TEST_CASE("Merge Observations", "[observation]")
 
     State s;
     s.Clear(Item::PASSAGE);
+    s.timeStep = 0;
 
     // 0 1
     // 3 2
