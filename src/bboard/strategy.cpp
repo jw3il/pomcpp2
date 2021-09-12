@@ -161,27 +161,24 @@ Move MoveTowardsPowerup(const Board& b, const RMap& r, int radius)
     return Move::IDLE;
 }
 
-Move MoveTowardsEnemy(const Board& b, const RMap& r, int radius)
+Move MoveTowardsEnemy(const Board& b, const RMap& r, int agentID, int radius)
 {
-    const Position& a = r.source;
+    const AgentInfo& a = b.agents[agentID];
 
     for(int i = 0; i < AGENT_COUNT; i++)
     {
-        // TODO: Skip own id (?)
+        const AgentInfo& other = b.agents[i];
 
-        const AgentInfo& inf = b.agents[i];
+        // ignore self, dead agents and teammates
+        if(i == agentID || other.dead || !a.IsEnemy(other)) continue;
 
-        if((inf.x == a.x && inf.y == a.y) || inf.dead) continue;
-
-        int x = b.agents[i].x;
-        int y = b.agents[i].y;
-        if(std::abs(x - a.x) + std::abs(y - a.y) > radius)
+        if(std::abs(other.x - a.x) + std::abs(other.y - a.y) > radius)
         {
             continue;
         }
         else
         {
-            return MoveTowardsPosition(r, {x, y});
+            return MoveTowardsPosition(r, {other.x, other.y});
         }
 
     }
@@ -297,21 +294,19 @@ void PrintPath(RMap &r, Position from, Position to)
     }
 }
 
-// TODO ADD TEAM SUPPORT
 bool IsAdjacentEnemy(const Board& b, int agentID, int distance)
 {
     const AgentInfo& a = b.agents[agentID];
 
     for(int i = 0; i < bboard::AGENT_COUNT; i++)
     {
-        // ignore self and dead agents
-        if(i == agentID || b.agents[i].dead) continue;
-        // ignore team
-        if(a.team != 0 && a.team == b.agents[i].team) continue;
+        const AgentInfo& other = b.agents[i];
+
+        // ignore self, dead agents and teammates
+        if(i == agentID || other.dead || !a.IsEnemy(other)) continue;
 
         // manhattan dist
-        if((std::abs(b.agents[i].x - a.x) +
-                std::abs(b.agents[i].y - a.y)) <= distance)
+        if((std::abs(other.x - a.x) + std::abs(other.y - a.y)) <= distance)
         {
             return true;
         }

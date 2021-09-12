@@ -158,10 +158,12 @@ TEST_CASE("Move Towards Methods", "[strategy]")
         s->PutAgent(4, 5, 0);
         s->PutAgent(2, 6, 1);
 
-        strategy::FillRMap(*s.get(), r, 0);
+        int agentID = 0;
 
-        Move m1 = strategy::MoveTowardsEnemy(*s.get(), r, 2);
-        Move m2 = strategy::MoveTowardsEnemy(*s.get(), r, 3);
+        strategy::FillRMap(*s.get(), r, agentID);
+
+        Move m1 = strategy::MoveTowardsEnemy(*s.get(), r, agentID, 2);
+        Move m2 = strategy::MoveTowardsEnemy(*s.get(), r, agentID, 3);
 
         REQUIRE(m1 == Move::IDLE);
         REQUIRE(m2 == Move::DOWN);

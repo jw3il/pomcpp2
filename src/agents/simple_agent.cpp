@@ -89,7 +89,7 @@ Move SimpleAgent::decide(const Observation* obs)
                 return Move(rng() % 5);
             }
 
-            Move m = MoveTowardsEnemy(b, r, 7);
+            Move m = MoveTowardsEnemy(b, r, id, 7);
             Position p = util::DesiredPosition(a.x, a.y, m);
             if(!util::IsOutOfBounds(p.x, p.y) && IS_WALKABLE(b.items[p.y][p.x]) &&
                     _safe_condition(IsInDanger(b, p.x, p.y), 5))

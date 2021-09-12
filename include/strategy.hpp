@@ -28,10 +28,10 @@ const int chalf = 0xFFFF;
  */
 struct RMap
 {
-
     int map[BOARD_SIZE][BOARD_SIZE] = {};
     RMapInfo info;
     Position source;
+
     /**
      * @brief GetDistance Returns the shortest walking
      * distance from the point the RMap was initialized
@@ -113,9 +113,10 @@ Move MoveTowardsPowerup(const Board& b, const RMap& r, int radius);
  * in that radius, then default to IDLE
  * @param r A filled map with all information about distances and
  * paths. See bboard::strategy::RMap for more info
+ * @param agentID Own id
  * @param radius Maximum search distance (manhattan)
  */
-Move MoveTowardsEnemy(const Board& b, const RMap& r, int radius);
+Move MoveTowardsEnemy(const Board& b, const RMap& r, int agentID, int radius);
 
 /**
  * @brief FilterSafeDirections Adds all possible safe moves to the
