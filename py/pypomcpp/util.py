@@ -82,8 +82,10 @@ def team_print_stats(results, steps, episodes):
 
     total_won = int(np.sum(num_won) / 2)
     print("Wins: {} ({:.2f}%)".format(total_won, total_won / episodes * 100))
-    print("> Team 0 (Agent 0, 2): {} ({:.2f}%)".format(num_won[0], num_won[0] / total_won * 100))
-    print("> Team 1 (Agent 1, 3): {} ({:.2f}%)".format(num_won[1], num_won[1] / total_won * 100))
+    print("> Team 0 (Agent 0, 2): {} ({:.2f}%)".format(
+        num_won[0], 0 if total_won == 0 else num_won[0] / total_won * 100))
+    print("> Team 1 (Agent 1, 3): {} ({:.2f}%)".format(
+        num_won[1], 0 if total_won == 0 else num_won[1] / total_won * 100))
 
     num_ties = np.sum(results[:, 0] == pommerman.constants.Result.Tie.value)
     print("Ties: {} ({:.2f}%)".format(num_ties, num_ties / episodes * 100))

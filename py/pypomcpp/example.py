@@ -29,9 +29,9 @@ agent_list = [
 ]
 
 # Make the "Free-For-All" environment using the agent list
-env = pommerman.make('PommeFFACompetition-v0', agent_list)
+# env = pommerman.make('PommeFFACompetition-v0', agent_list)
 # env = pommerman.make('PommeTeam-v0', agent_list)
-# env = pommerman.make('PommeRadioCompetition-v2', agent_list)
+env = pommerman.make('PommeRadioCompetition-v2', agent_list)
 
 use_env_state = False
 

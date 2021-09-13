@@ -1,12 +1,14 @@
 import pommerman
 import pommerman.agents as agents
 import pommerman.utility as utility
+from gym.spaces import Tuple, Discrete
 from pommerman.constants import Action
 from pommerman.envs.v0 import Pomme
 from pypomcpp.clib import CLib
 import time
 import ctypes
 import json
+
 
 class CppAgent(agents.BaseAgent):
     def __init__(self, library_path, agent_name: str, seed: int = 42, print_json=False):
@@ -22,6 +24,7 @@ class CppAgent(agents.BaseAgent):
         self.agent_create = lib.get_fun("agent_create", [ctypes.c_char_p, ctypes.c_long], ctypes.c_bool)
         self.agent_reset = lib.get_fun("agent_reset", [], ctypes.c_void_p)
         self.agent_act = lib.get_fun("agent_act", [ctypes.c_char_p, ctypes.c_bool], ctypes.c_int)
+        self.get_message = lib.get_fun("get_message", [ctypes.c_void_p, ctypes.c_void_p], ctypes.c_void_p)
 
         # create agent
 
@@ -37,6 +40,7 @@ class CppAgent(agents.BaseAgent):
 
     def get_state_json(self):
         env: Pomme = self.env
+
         state = {
             'game_type': env._game_type,
             'board_size': env._board_size,
@@ -46,8 +50,21 @@ class CppAgent(agents.BaseAgent):
             'bombs': env._bombs,
             'flames': env._flames,
             'items': [[k, i] for k, i in env._items.items()],
-            'intended_actions': env._intended_actions
+            'intended_actions': env._intended_actions,
         }
+
+        if hasattr(env, '_radio_from_agent'):
+            radio_from_agent = {}
+            for agentItem in env._radio_from_agent:
+                radio_from_agent[agentItem.value] = env._radio_from_agent[agentItem]
+            # add all messages
+            state['radio_from_agent'] = radio_from_agent
+
+            # simulate radio message observation
+            teammate = (self.id + 2) % 4 + 10
+            state['teammate'] = teammate
+            state['message'] = radio_from_agent[teammate]
+
         return json.dumps(state, cls=utility.PommermanJSONEncoder)
 
     def act(self, obs, action_space):
@@ -71,7 +88,7 @@ class CppAgent(agents.BaseAgent):
 
         diff_encode = (act_encoded - act_start)
         self.sum_encode_time += diff_encode
-        
+
         diff_act = (act_done - act_encoded)
         self.sum_agent_act_time += diff_act
 
@@ -79,12 +96,24 @@ class CppAgent(agents.BaseAgent):
 
         # print("Python side: Agent wants to do do move ", move, " = ", Action(move))
 
-        return move
+        if isinstance(action_space, Discrete):
+            return move
+        elif isinstance(action_space, Tuple):
+            # default message value is 0
+            content_0 = ctypes.c_int(0)
+            content_1 = ctypes.c_int(0)
+            self.get_message(ctypes.byref(content_0), ctypes.byref(content_1))
+
+            return [move, content_0.value, content_1.value]
+        else:
+            raise ValueError("Unknown action space ", action_space)
 
     def init_agent(self, id, game_type):
         super().init_agent(id, game_type)
 
-        if game_type != pommerman.constants.GameType.FFA and game_type != pommerman.constants.GameType.Team:
+        if game_type != pommerman.constants.GameType.FFA and game_type != pommerman.constants.GameType.Team \
+                and game_type != pommerman.constants.GameType.TeamRadio:
+            
             raise ValueError(f"GameType {str(game_type)} is not supported!")
 
         self.id = id

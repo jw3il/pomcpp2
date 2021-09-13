@@ -662,7 +662,8 @@ public:
 enum class GameMode
 {
     FreeForAll = 0,
-    TwoTeams
+    TwoTeams,
+    TeamRadio,
 };
 
 /**
@@ -677,6 +678,7 @@ inline int GetTeam(GameMode gameMode, int agentID)
     case GameMode::FreeForAll:
         return 0;
     case GameMode::TwoTeams:
+    case GameMode::TeamRadio:
         return (agentID % 2 == 0) ? 1 : 2;
     default:
         std::cout << "Warning: Unknown game mode mode '" << (int)gameMode << "'" << std::endl;
@@ -894,6 +896,8 @@ public:
     bool IsValid();
 };
 
+std::ostream& operator<<(std::ostream &ostream, const PythonEnvMessage &msg);
+
 /**
  * @brief The Agent struct defines a behaviour. For a given
  * state it will return a Move.
@@ -915,12 +919,22 @@ struct Agent
     std::vector<std::unique_ptr<Message>> outbox;
 
     /**
-     * @brief Send a message object. Claims ownership and places it in the outbox.
+     * @brief Send a new message object. Claims ownership and places it in the outbox.
      * @param msg The message that shall be sent 
      */
     inline void Send(Message* msg)
     {
         outbox.push_back(std::unique_ptr<Message>(msg));
+    }
+
+    /**
+     * @brief Receive a new message object. Claims ownership and places it in the inbox.
+     * WARNING: Normally you should not call this method manually. Use Send() instead.
+     * @param msg The message that shall be received 
+     */
+    inline void Receive(Message* msg)
+    {
+        inbox.push_back(std::unique_ptr<Message>(msg));
     }
 
     /**
@@ -933,6 +947,18 @@ struct Agent
     inline T* TryRead(int inboxIndex)
     {
         return dynamic_cast<T*>(inbox[inboxIndex].get());
+    }
+
+    /**
+     * @brief Try to read a message of a given type from the outbox.
+     * @param outboxIndex The index of the message in the outbox
+     * @param T The (expected) type of the message
+     * @return A pointer to the message (nullptr if the message is of a different type)
+     */
+    template<typename T>
+    inline T* TryReadOutbox(int outboxIndex)
+    {
+        return dynamic_cast<T*>(outbox[outboxIndex].get());
     }
 
     /**

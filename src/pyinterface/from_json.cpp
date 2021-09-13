@@ -1,6 +1,5 @@
 #include "from_json.hpp"
 
-#include "nlohmann/json.hpp"
 #include "step_utility.hpp"
 #include <unordered_set>
 
@@ -76,6 +75,7 @@ GameMode _mapPyToGameMode(int py)
     {
         case 1: return GameMode::FreeForAll;
         case 2: return GameMode::TwoTeams;
+        case 3: return GameMode::TeamRadio;
         default: throw std::runtime_error("Not supported game mode " + std::to_string(py));
     }
 }
@@ -148,10 +148,25 @@ void _flameFromJSON(const nlohmann::json& pyFlame, Flame& flame)
     flame.timeLeft = pyFlame["life"].get<int>() + 1;
 }
 
-void StateFromJSON(State& state, const std::string& json)
+
+/**
+ * @brief Parse json on the fly.
+ */
+inline nlohmann::json _auto_parse(const nlohmann::json& json)
+{
+    if (json.type() == nlohmann::json::value_t::string)
+    {
+        return nlohmann::json::parse(json.get<std::string>());
+    }
+
+    return json;
+}
+
+void StateFromJSON(State& state, const nlohmann::json& json)
 {
     // attributes: board_size, step_count, board, agents, bombs, flames, items, intended_actions
-    const nlohmann::json pyState = nlohmann::json::parse(json);
+    nlohmann::json pyState = _auto_parse(json);
+
     _checkKeyValue(pyState, "board_size", BOARD_SIZE);
 
     GameMode gameMode = _mapPyToGameMode(pyState["game_type"].get<int>());
@@ -251,16 +266,16 @@ void StateFromJSON(State& state, const std::string& json)
     state.currentFlameTime = util::OptimizeFlameQueue(state);
 }
 
-State StateFromJSON(const std::string& json)
+State StateFromJSON(const nlohmann::json& json)
 {
     State state;
     StateFromJSON(state, json);
     return state;
 }
 
-void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
+void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agentId)
 {
-    nlohmann::json pyObs = nlohmann::json::parse(json);
+    nlohmann::json pyObs = _auto_parse(json);
 
     // attributes:
     // - game_type (int), game_env (string), step_count (int)
@@ -382,7 +397,7 @@ void ObservationFromJSON(Observation& obs, const std::string& json, int agentId)
     obs.currentFlameTime = util::OptimizeFlameQueue(obs);
 }
 
-Observation ObservationFromJSON(const std::string& json, int agentId)
+Observation ObservationFromJSON(const nlohmann::json& json, int agentId)
 {
     Observation obs;
     ObservationFromJSON(obs, json, agentId);

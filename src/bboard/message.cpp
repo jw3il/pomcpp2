@@ -49,4 +49,8 @@ bool PythonEnvMessage::IsValid()
     return valid;
 }
 
+std::ostream& operator<<(std::ostream &ostream, const PythonEnvMessage &msg) {
+    return ostream << "PythonEnvMessage(" << msg.sender << "->" << msg.receiver << ": [" << msg.content[0] << ", " << msg.content[1] << "])";
+}
+
 }

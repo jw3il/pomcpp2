@@ -1,7 +1,7 @@
 #include "pymethods.hpp"
+#include "from_json.hpp"
 
 #include <iostream>
-#include "from_json.hpp"
 
 // init interface state
 
@@ -44,7 +44,7 @@ void agent_reset(int id)
     }
 }
 
-int agent_act(char* json, bool jsonIsState)
+int agent_act(char* cjson, bool jsonIsState)
 {
     auto agent = PyInterface::agent.get();
     if(!agent)
@@ -58,22 +58,61 @@ int agent_act(char* json, bool jsonIsState)
         return -1;
     }
 
-    std::string jsonString(json);
+    agent->inbox.clear();
+    agent->outbox.clear();
+
+    nlohmann::json json = nlohmann::json::parse(cjson);
+    // std::cout << "json > " << json << std::endl;
     if(jsonIsState)
     {
-        // std::cout << "json > state " << jsonString << std::endl;
-        StateFromJSON(PyInterface::state, jsonString);
+        StateFromJSON(PyInterface::state, json);
+
         ObservationParameters fullyObservable;
         Observation::Get(PyInterface::state, agent->id, fullyObservable, PyInterface::observation);
     }
     else
     {
-        // std::cout << "json > obs " << jsonString << std::endl;
-        ObservationFromJSON(PyInterface::observation, jsonString, agent->id);
+        ObservationFromJSON(PyInterface::observation, json, agent->id);
+    }
+
+    nlohmann::json msgJ = json["message"];
+    if (msgJ != nlohmann::json::value_t::null)
+    {
+        int teammate = json["teammate"].get<int>() - 10;
+        if (!PyInterface::observation.agents[teammate].dead)
+        {
+            auto message = new bboard::PythonEnvMessage(teammate, agent->id, {msgJ[0].get<int>(), msgJ[1].get<int>()});
+            // std::cout << "Msg: " << *message << std::endl;
+            agent->Receive(message);
+        }
     }
 
     bboard::Move move = agent->act(&PyInterface::observation);
+    // agent->Send(new PythonEnvMessage(0, 2, {agent->id, 7}));
     // bboard::PrintState(&PyInterface::state);
     // std::cout << "Agent " << agent->id << " selects action " << (int)move << std::endl;
     return (int)move;
+}
+
+void get_message(int* content_0, int* content_1)
+{
+    auto agent = PyInterface::agent.get();
+    if (!agent)
+    {
+        std::cout << "Agent does not exist!" << std::endl;
+        return;
+    }
+
+    for (int i = 0; i < agent->outbox.size(); i++)
+    {
+        PythonEnvMessage* msg = agent->TryReadOutbox<PythonEnvMessage>(i);
+        if (msg != nullptr)
+        {
+            *content_0 = msg->content[0];
+            *content_1 = msg->content[1];
+            return;
+        }
+    }
+    
+    return;
 }

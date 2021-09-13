@@ -39,11 +39,17 @@ extern "C" {
 
     /**
      * @brief Get the action from the current agent for the given state/observation.
-     * @param json The current state/observation
+     * @param cjson The current state/observation as a json char array
      * @param jsonIsState Whether json contains a state (true) or observation (false)
      * @return The action of the agent. -1 if there has been an error.
      */
-    int agent_act(char* json, bool jsonIsState);
+    int agent_act(char* cjson, bool jsonIsState);
+
+    /**
+     * @brief Gets the first message from the agent's inbox that is compatible to the 
+     * python environment and returns it using the given pointers. Ignores receivers.
+     */
+    void get_message(int* content_0, int* content_1);
 }
 
 #endif // PYMETHODS_H
