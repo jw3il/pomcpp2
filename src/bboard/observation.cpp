@@ -205,7 +205,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
 void Observation::ToState(State& state) const
 {
     // initialize the board of the state
-    state.CopyFrom(*this);
+    state.CopyFrom(*this, false);
 
     // optimize flame queue
     state.currentFlameTime = util::OptimizeFlameQueue(state);
@@ -213,23 +213,23 @@ void Observation::ToState(State& state) const
     int aliveAgents = 0;
     for(int i = 0; i < AGENT_COUNT; i++)
     {
-        const AgentInfo& obsInfo = agents[i];
+        AgentInfo obsInfo = agents[i];
         AgentInfo& stateInfo = state.agents[i];
+
+        if(!obsInfo.statsVisible)
+        {
+            // copy the stats from the given state object
+            obsInfo.bombCount = stateInfo.bombCount;
+            obsInfo.maxBombCount = stateInfo.maxBombCount;
+            obsInfo.bombStrength = stateInfo.bombStrength;
+            obsInfo.canKick = stateInfo.canKick;
+
+            obsInfo.statsVisible = true;
+        }
 
         stateInfo = obsInfo;
 
-        if (!stateInfo.statsVisible)
-        {
-            // assume maximal stats (this is just an arbitrary pessimistic heuristic!)
-            stateInfo.statsVisible = true;
-
-            stateInfo.bombCount = 0;
-            stateInfo.maxBombCount = MAX_BOMBS_PER_AGENT;
-            stateInfo.bombStrength = 10;
-            stateInfo.canKick = true;
-        }
-
-        if(!obsInfo.dead)
+        if(!stateInfo.dead)
         {
             aliveAgents += 1;
         }

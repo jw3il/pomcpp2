@@ -844,7 +844,8 @@ public:
     int agentID;
 
     /**
-     * @brief GetObservation Creates an observation for some agent based on a state.
+     * @brief Creates an observation for some agent based on a state.
+     * 
      * @param state The current state of the environment
      * @param agentID The id of the agent for which the observation is created
      * @param obsParams The parameters which define which information the observation will contain
@@ -853,13 +854,16 @@ public:
     static void Get(const State& state, const uint agentID, const ObservationParameters obsParams, Observation& observation);
 
     /**
-     * @brief ToState Converts this observation to an (potentially incomplete) state object. This allows you to execute steps on that observation,
-     * @param state The state object which will be used to save the state
+     * @brief ToState Converts this observation to a (potentially incomplete) state. This allows you to execute steps on that observation. 
+     * If an agent's stats are not visible in this observation, the stats from the given state are used instead. 
+     * 
+     * @param state The state object that will be used to save the state.
      */
     void ToState(State& state) const;
 
     /**
-     * @brief Merge Merges another observation into this observation.
+     * @brief Merges another observation into this observation.
+     * 
      * @param last The observation of the last step which should be merged into this one.
      * @param params The observation parameters used to generate both observations (this and the last one).
      * @param agents Whether to include agents (also removes duplicates)
