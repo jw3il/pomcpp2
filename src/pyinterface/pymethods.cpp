@@ -58,8 +58,8 @@ int agent_act(char* cjson, bool jsonIsState)
         return -1;
     }
 
-    agent->inbox.clear();
-    agent->outbox.clear();
+    agent->incoming.release();
+    agent->outgoing.release();
 
     nlohmann::json json = nlohmann::json::parse(cjson);
     // std::cout << "json > " << json << std::endl;
@@ -81,9 +81,9 @@ int agent_act(char* cjson, bool jsonIsState)
         int teammate = json["teammate"].get<int>() - 10;
         if (!PyInterface::observation.agents[teammate].dead)
         {
-            auto message = new bboard::PythonEnvMessage(teammate, agent->id, {msgJ[0].get<int>(), msgJ[1].get<int>()});
+            auto message = std::make_unique<PythonEnvMessage>(msgJ[0], msgJ[1]);
             // std::cout << "Msg: " << *message << std::endl;
-            agent->Receive(message);
+            agent->incoming = std::move(message);
         }
     }
 
@@ -94,7 +94,7 @@ int agent_act(char* cjson, bool jsonIsState)
     return (int)move;
 }
 
-void get_message(int* content_0, int* content_1)
+void get_message(int* word0, int* word1)
 {
     auto agent = PyInterface::agent.get();
     if (!agent)
@@ -103,13 +103,19 @@ void get_message(int* content_0, int* content_1)
         return;
     }
 
-    for (int i = 0; i < agent->outbox.size(); i++)
+    if (agent->outgoing)
     {
-        PythonEnvMessage* msg = agent->TryReadOutbox<PythonEnvMessage>(i);
-        if (msg != nullptr)
+        PythonEnvMessage* msg = dynamic_cast<PythonEnvMessage*>(agent->outgoing.get());
+        if (msg)
         {
-            *content_0 = msg->content[0];
-            *content_1 = msg->content[1];
+            if (!msg->IsValid())
+            {
+                std::cerr << "WARNING: Encountered invalid message " << *msg << " at agent " << agent->id << "!" << std::endl;
+                return;
+            }
+
+            *word0 = msg->words[0];
+            *word1 = msg->words[1];
             return;
         }
     }

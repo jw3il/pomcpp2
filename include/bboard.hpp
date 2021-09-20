@@ -687,6 +687,15 @@ inline int GetTeam(GameMode gameMode, int agentID)
 }
 
 /**
+ * @brief Gets the ID of the teammate in four player team game modes.
+ * @param agentID An agent id
+ */
+inline int GetTeammateID(int agentID)
+{
+    return (agentID + 2) % 4;
+}
+
+/**
  * @brief SetTeams Sets the teams of the agents according to the given game mode.
  * @param agents The agent infos
  * @param gameMode The game mode
@@ -865,34 +874,54 @@ public:
 };
 
 /**
- * @brief A message that can be transmitted between agents.
+ * @brief Superclass for messages that can be transmitted between agents.
  */
 class Message
 {
 public:
-    const int sender;
-    const int receiver;
-
-    Message(int sender, int receiver);
     virtual ~Message() = default;
 };
 
+/**
+ * @brief A message that consists of multiple words of type T.
+ * 
+ * @tparam T Word type
+ * @tparam nbWords Number of words
+ */
+template<typename T, std::size_t nbWords>
+class MultiWordMessage : public Message
+{
+public:
+    const std::array<T, nbWords> words;
+    MultiWordMessage(std::array<T, nbWords> words) : words(words) {}
+};
 
 /**
  * @brief A message that is compatible to the messages used in the python environment. Consists of two numbers from 0 to 7.
  */
-class PythonEnvMessage : public Message
+class PythonEnvMessage : public MultiWordMessage<int, 2>
 {
-private:
-    bool valid;
-
 public:
-    const std::array<int, 2> content;
+    /**
+     * @brief Construct a new PythonEnvMessage.
+     * 
+     * @param words An array with two words.
+     */
+    PythonEnvMessage(std::array<int, 2> words) : MultiWordMessage(words) {}
 
-    PythonEnvMessage(int sender, int receiver, std::array<int, 2> content);
-    
-    static std::unique_ptr<PythonEnvMessage> FromJSON(std::string json);
-    std::string ToJSON();
+    /**
+     * @brief Construct a new PythonEnvMessage with individual words.
+     * 
+     * @param word0 The first word
+     * @param word1 The second word
+     */
+    PythonEnvMessage(int word0, int word1) : MultiWordMessage({word0, word1}) {}
+
+    /**
+     * @brief Checks whether both words contain valid values from 0 to 7 (inclusive).
+     * 
+     * @return Whether this message is valid.
+     */
     bool IsValid();
 };
 
@@ -906,59 +935,39 @@ struct Agent
 {
     virtual ~Agent() {}
 
+    /**
+     * @brief The agent's id.
+     */
     int id = -1;
 
     /**
-     * @brief Incoming messages are placed into the message inbox.
+     * @brief Incoming messages are placed here.
      */
-    std::vector<std::unique_ptr<Message>> inbox;
+    std::unique_ptr<Message> incoming;
 
     /**
-     * @brief Outgoing messages should be placed into the message outbox. 
+     * @brief Outgoing messages should be placed here. 
      */
-    std::vector<std::unique_ptr<Message>> outbox;
+    std::unique_ptr<Message> outgoing;
 
     /**
-     * @brief Send a new message object. Claims ownership and places it in the outbox.
-     * @param msg The message that shall be sent 
+     * @brief Send a new PythonEnvMessage.
+     * 
+     * @param word0 The first word (0 <= word0 <= 7)
+     * @param word1 The second word (0 <= word1 <= 7)
      */
-    inline void Send(Message* msg)
+    inline void SendMessage(int word0, int word1)
     {
-        outbox.push_back(std::unique_ptr<Message>(msg));
+        outgoing = std::make_unique<PythonEnvMessage>(word0, word1);
     }
 
     /**
-     * @brief Receive a new message object. Claims ownership and places it in the inbox.
-     * WARNING: Normally you should not call this method manually. Use Send() instead.
-     * @param msg The message that shall be received 
+     * @brief Try to read a message of a given type from the incoming messages.
+     * @return A pointer to the message (nullptr if there is no message or if it is of a different type)
      */
-    inline void Receive(Message* msg)
+    inline PythonEnvMessage* TryReadMessage()
     {
-        inbox.push_back(std::unique_ptr<Message>(msg));
-    }
-
-    /**
-     * @brief Try to read a message of a given type from the inbox.
-     * @param inboxIndex The index of the message in the inbox
-     * @param T The (expected) type of the message
-     * @return A pointer to the message (nullptr if the message is of a different type)
-     */
-    template<typename T>
-    inline T* TryRead(int inboxIndex)
-    {
-        return dynamic_cast<T*>(inbox[inboxIndex].get());
-    }
-
-    /**
-     * @brief Try to read a message of a given type from the outbox.
-     * @param outboxIndex The index of the message in the outbox
-     * @param T The (expected) type of the message
-     * @return A pointer to the message (nullptr if the message is of a different type)
-     */
-    template<typename T>
-    inline T* TryReadOutbox(int outboxIndex)
-    {
-        return dynamic_cast<T*>(outbox[outboxIndex].get());
+        return dynamic_cast<PythonEnvMessage*>(incoming.get());
     }
 
     /**
@@ -1021,11 +1030,6 @@ public:
      * @brief Sets the observation parameters that are used to create the observations for all agents.
      */
     void SetObservationParameters(ObservationParameters parameters);
-
-    /**
-     * @brief Defines whether communication is allowed.
-     */
-    void SetCommunication(bool communication);
 
     /**
      * @brief RunGame simulates some steps in the game.

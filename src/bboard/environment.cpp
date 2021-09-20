@@ -80,6 +80,14 @@ void Environment::MakeGame(std::array<Agent*, AGENT_COUNT> a, GameMode gameMode,
     }
 
     this->gameMode = gameMode;
+    if(gameMode == GameMode::TeamRadio)
+    {
+        communication = true;
+    }
+    else
+    {
+        communication = false;
+    }
 
     state->Init(gameMode, boardSeed, agentPositionSeed);
 
@@ -90,11 +98,6 @@ void Environment::MakeGame(std::array<Agent*, AGENT_COUNT> a, GameMode gameMode,
 void Environment::SetObservationParameters(ObservationParameters parameters)
 {
     observationParameters = parameters;
-}
-
-void Environment::SetCommunication(bool communication)
-{
-    this->communication = communication;
 }
 
 void Environment::RunGame(int steps, bool asyncAct, bool render, bool renderClear, bool renderInteractive, int renderWaitMs)
@@ -170,6 +173,7 @@ bool Environment::HasActed(int agentID)
     return hasActed[agentID];
 }
 
+
 void Environment::Step(bool asyncAct)
 {
     if(IsDone())
@@ -182,28 +186,16 @@ void Environment::Step(bool asyncAct)
         // clear message inboxes
         for(uint i = 0; i < AGENT_COUNT; i++)
         {
-            agents[i]->inbox.clear();
+            agents[i]->incoming.release();
         }
 
-        // send messages
+        // send messages to team mates
         for(uint i = 0; i < AGENT_COUNT; i++)
         {
-            for(uint a = 0; a < agents[i]->outbox.size(); a++)
-            {
-                auto ptr = std::move(agents[i]->outbox[a]);
-                auto m = ptr.get();
-
-                if(m->sender != i)
-                {
-                    std::cout << "Warning: Agent " << i << " tried to send a message as agent " << m->sender;
-                    std::cout << ". The message has been dropped." << std::endl;
-                    continue;
-                }
-
-                agents[m->receiver]->inbox.push_back(std::move(ptr));
+            if(agents[i]->outgoing)
+            { 
+                agents[GetTeammateID(i)]->incoming = std::move(agents[i]->outgoing);
             }
-
-            agents[i]->outbox.clear();
         }
     }
 
@@ -264,8 +256,8 @@ void Environment::SetAgents(std::array<Agent*, AGENT_COUNT> agents)
 
         if(communication)
         {
-            a->inbox.clear();
-            a->outbox.clear();
+            a->incoming.release();
+            a->outgoing.release();
         }
 
         a->id = int(i);

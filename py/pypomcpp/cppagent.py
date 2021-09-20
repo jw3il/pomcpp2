@@ -100,11 +100,11 @@ class CppAgent(agents.BaseAgent):
             return move
         elif isinstance(action_space, Tuple):
             # default message value is 0
-            content_0 = ctypes.c_int(0)
-            content_1 = ctypes.c_int(0)
-            self.get_message(ctypes.byref(content_0), ctypes.byref(content_1))
+            word_0 = ctypes.c_int(0)
+            word_1 = ctypes.c_int(0)
+            self.get_message(ctypes.byref(word_0), ctypes.byref(word_1))
 
-            return [move, content_0.value, content_1.value]
+            return [move, word_0.value, word_1.value]
         else:
             raise ValueError("Unknown action space ", action_space)
 

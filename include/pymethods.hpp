@@ -46,10 +46,13 @@ extern "C" {
     int agent_act(char* cjson, bool jsonIsState);
 
     /**
-     * @brief Gets the first message from the agent's inbox that is compatible to the 
-     * python environment and returns it using the given pointers. Ignores receivers.
+     * @brief If the agent tries to send a python-compatible message in this step, 
+     * return its content using the given word pointers.
+     * 
+     * @param word0 Pointer to the first word (used to return value)
+     * @param word1 Pointer to the second word (used to return value)
      */
-    void get_message(int* content_0, int* content_1);
+    void get_message(int* word0, int* word1);
 }
 
 #endif // PYMETHODS_H
