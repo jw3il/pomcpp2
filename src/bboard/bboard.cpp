@@ -573,7 +573,11 @@ void State::Kill() {}
 
 void State::EventBombExploded(Bomb b)
 {
-    agents[BMB_ID(b)].bombCount--;
+    int id = BMB_ID(b);
+    if (id >= 0 && id < AGENT_COUNT && agents[id].statsVisible)
+    {
+        agents[BMB_ID(b)].bombCount--;
+    }
 }
 
 //////////////////////

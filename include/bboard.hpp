@@ -842,6 +842,7 @@ class Observation : public Board
 {
 public:
     int agentID;
+    ObservationParameters params;
 
     /**
      * @brief Creates an observation for some agent based on a state.

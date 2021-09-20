@@ -46,6 +46,7 @@ inline void _filterFlames(const State& state, Observation& obs, Position pos, in
 void Observation::Get(const State& state, const uint agentID, const ObservationParameters obsParams, Observation& observation)
 {
     observation.agentID = agentID;
+    observation.params = obsParams;
 
     // fully observable environment
     if(obsParams.exposePowerUps && !obsParams.agentPartialMapView && obsParams.agentInfoVisibility == AgentInfoVisibility::All)

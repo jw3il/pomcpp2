@@ -80,6 +80,28 @@ GameMode _mapPyToGameMode(int py)
     }
 }
 
+ObservationParameters _getPythonObsParams(GameMode gameMode)
+{
+    ObservationParameters obsParams;
+    obsParams.agentInfoVisibility = AgentInfoVisibility::OnlySelf;
+    obsParams.exposePowerUps = false;
+
+    switch (gameMode)
+    {
+        case GameMode::FreeForAll:
+        case GameMode::TwoTeams:
+            obsParams.agentPartialMapView = false;
+            break;
+        case GameMode::TeamRadio:
+            obsParams.agentPartialMapView = true;
+            obsParams.agentViewSize = 4;
+            break;
+        default: throw std::runtime_error("Not supported game mode " + std::to_string((int)gameMode));
+    }
+
+    return obsParams;
+}
+
 void _boardFromJSON(const nlohmann::json& pyBoard, State& state)
 {
     for(int y = 0; y < BOARD_SIZE; y++)
@@ -284,6 +306,8 @@ void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agent
     // - board (int matrix), bomb_blast_strength (float matrix), bomb_life (float matrix), bomb_moving_direction (float matrix), flame_life (float matrix)
     
     GameMode gameMode = _mapPyToGameMode(pyObs["game_type"].get<int>());
+
+    obs.params = _getPythonObsParams(gameMode);
 
     // we only observe our own stats and other agents are invisible by default
     // (but we may find them when iterating over the board later)
