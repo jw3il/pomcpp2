@@ -186,7 +186,7 @@ void Environment::Step(bool asyncAct)
         // clear message inboxes
         for(uint i = 0; i < AGENT_COUNT; i++)
         {
-            agents[i]->incoming.release();
+            agents[i]->incoming.reset();
         }
 
         // send messages to team mates
@@ -256,8 +256,8 @@ void Environment::SetAgents(std::array<Agent*, AGENT_COUNT> agents)
 
         if(communication)
         {
-            a->incoming.release();
-            a->outgoing.release();
+            a->incoming.reset();
+            a->outgoing.reset();
         }
 
         a->id = int(i);

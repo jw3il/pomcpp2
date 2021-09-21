@@ -58,8 +58,8 @@ int agent_act(char* cjson, bool jsonIsState)
         return -1;
     }
 
-    agent->incoming.release();
-    agent->outgoing.release();
+    agent->incoming.reset();
+    agent->outgoing.reset();
 
     nlohmann::json json = nlohmann::json::parse(cjson);
     // std::cout << "json > " << json << std::endl;
@@ -78,12 +78,11 @@ int agent_act(char* cjson, bool jsonIsState)
     nlohmann::json msgJ = json["message"];
     if (msgJ != nlohmann::json::value_t::null)
     {
+        // only receive messages when the teammate is not dead
         int teammate = json["teammate"].get<int>() - 10;
         if (!PyInterface::observation.agents[teammate].dead)
         {
-            auto message = std::make_unique<PythonEnvMessage>(msgJ[0], msgJ[1]);
-            // std::cout << "Msg: " << *message << std::endl;
-            agent->incoming = std::move(message);
+            agent->incoming = std::make_unique<PythonEnvMessage>(msgJ[0], msgJ[1]);
         }
     }
 
