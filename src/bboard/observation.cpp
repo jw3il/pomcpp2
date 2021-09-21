@@ -497,15 +497,7 @@ void Observation::VirtualStep(State& state, bool keepAgents, bool keepBombs, int
     }
 
     _addFlamesFromObservation(state, *this);
+    util::CheckTerminalState(state);
 }
-
-// methods from board
-
-void Observation::Kill(int agentID)
-{
-    agents[agentID].dead = true;
-}
-
-void Observation::EventBombExploded(__attribute__((unused)) Bomb b) {}
 
 }

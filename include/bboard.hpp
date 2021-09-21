@@ -491,6 +491,9 @@ inline std::ostream & operator<<(std::ostream & str, const Flame& f)
     return str;
 }
 
+/**
+ * @brief Holds all information about the game board.
+ */
 class Board
 {
 public:
@@ -562,31 +565,45 @@ public:
     }
 
     /**
-     * @brief TryPlantBomb Tries to plant a bomb at the agent's position (and changes the agent's bomb count).
+     * @brief HasAgent Returns the index of the agent that occupies
+     * the given position. -1 if no agent is there
      */
-    template<bool duringStep>
-    inline void TryPlantBomb(AgentInfo& agent, int id, bool setItem = false)
-    {
-        if(agent.bombCount >= agent.maxBombCount || HasBomb(agent.x, agent.y))
-            return;
-
-        // when we plant a bomb during the step function, we need to increment the bomb lifetime by 1
-        // because all bomb lifetimes will be decremented at the end of this step
-        PlantBombModifiedLife(agent.x, agent.y, id, agent.bombStrength, BOMB_LIFETIME + (duringStep ? 1 : 0), setItem);
-
-        agent.bombCount++;
-    }
+    int GetAgent(int x, int y);
 
     /**
-     * @brief PlantBombModifiedLife Plants a bomb at the specified position with given strength and lifetime.
+     * @brief Places agents with given IDs clockwise in the corners of
+     * the board, starting from top left.
+     * 
+     * @param a0 The id of the first agent.
+     * @param a1 The id of the second agent.
+     * @param a2 The id of the third agent.
+     * @param a3 The id of the fourth agent.
+     * @param padding The padding to the walls (>= 0).
      */
-    void PlantBombModifiedLife(int x, int y, int id, int strength, int lifeTime, bool setItem);
+    void PutAgentsInCorners(int a0, int a1, int a2, int a3, int padding);
 
     /**
-     * @brief ExplodeTopBomb Explodes the bomb at the the specified index
-     * of the queue and spawns flames.
+     * @brief Places a specified agent on the specified location and updates 
+     * agent positions.
+     * 
+     * @param x x-position of the agent.
+     * @param y y-position of the agent.
+     * @param agentID The agent ID (from 0 to AGENT_COUNT)
      */
-    void ExplodeBombAt(int index);
+    void PutAgent(int x, int y, int agentID);
+
+    /**
+     * @brief Puts a bomb at the specified position with given strength and lifetime.
+     * Adds one to the agent's bomb count.
+     * 
+     * @param x x-position of the agent
+     * @param y y-position of the agent
+     * @param agentID ID of the agent that "owns" this bomb
+     * @param strength Bomb strength
+     * @param lifeTime Bomb lifetime
+     * @param setItem Whether to set the board item to Item::BOMB 
+     */
+    void PutBomb(int x, int y, int agentID, int strength, int lifeTime, bool setItem);
 
     /**
      * @brief hasBomb Returns true if a bomb is at the specified
@@ -607,31 +624,6 @@ public:
     int GetBombIndex(int x, int y) const;
 
     /**
-     * @brief SpawnFlameItem Spawns a single flame item on the board
-     * @param x The x position of the fire
-     * @param y The y position of the fire
-     * @param isCenterFlame Whether (x, y) is the bomb's position
-     * @return Should we continue spawing flames in that direction?
-     */
-    bool SpawnFlameItem(int x, int y, bool isCenterFlame);
-
-    /**
-     * @brief SpawnFlames Spawns rays of flames at the
-     * specified location.
-     * @param x The x position of the origin of flames
-     * @param y The y position of the origin of flames
-     * @param strength The farthest reachable distance
-     * from the origin
-     */
-    void SpawnFlames(int x, int y, int strength);
-
-    /**
-     * @brief PopFlame extinguishes all the top flames
-     * of the flame queue which have zero lifetime left.
-     */
-    void PopFlames();
-
-    /**
      * @brief FlagItem Returns the correct powerup
      * for the given pow-flag
      */
@@ -642,18 +634,6 @@ public:
      * for the given item
      */
     static int ItemFlag(Item item);
-
-    /**
-     * @brief Kill Kill some agent on this board.
-     * @param agentID The id of the agent
-     */
-    virtual void Kill(const int agentID) = 0;
-
-    /**
-     * @brief EventBombExploded Called when a bomb explodes.
-     * @param b The bomb which explodes.
-     */
-    virtual void EventBombExploded(Bomb b) = 0;
 };
 
 /**
@@ -703,13 +683,9 @@ inline int GetTeammateID(int agentID)
 void SetTeams(AgentInfo agents[AGENT_COUNT], GameMode gameMode);
 
 /**
- * Represents all information associated with the game board.
- * Includes (in)destructible obstacles, bombs, player positions,
- * etc (as defined by the Pommerman source)
- *
- * @brief Holds all information about the board
+ * @brief Holds all information about the game state and provides member functions to initialize the board and execute steps.
  */
-struct State : public Board
+class State : public Board
 {
 public:
     /**
@@ -751,30 +727,57 @@ public:
     void Init(GameMode gameMode, long boardSeed, long agentPositionSeed, int numRigid = 36, int numWood = 36, int numPowerUps = 20, int padding = 1, int breathingRoomSize = 3);
 
     /**
-     * @brief HasAgent Returns the index of the agent that occupies
-     * the given position. -1 if no agent is there
+     * @brief Execute a step using the given moves.
+
+     * @param moves The agents' moves
      */
-    int GetAgent(int x, int y);
+    void Step(Move* moves);
 
     /**
-     * @brief PutAgents Places agents with given IDs clockwise in the corners of
-     * the board, starting from top left.
-     * @param a0 The id of the first agent.
-     * @param a1 The id of the second agent.
-     * @param a2 The id of the third agent.
-     * @param a3 The id of the fourth agent.
-     * @param padding The padding to the walls (>= 0).
+     * @brief Puts a bomb at the agent's position if it has enough available bombs.
      */
-    void PutAgentsInCorners(int a0, int a1, int a2, int a3, int padding);
+    template<bool duringStep>
+    inline void TryPutBomb(int id, bool setItem = false)
+    {
+        AgentInfo& agent = agents[id];
+        if(agent.bombCount >= agent.maxBombCount || HasBomb(agent.x, agent.y))
+            return;
+
+        // when we plant a bomb during the step function, we need to increment the bomb lifetime by 1
+        // because all bomb lifetimes will be decremented at the end of this step
+        PutBomb(agent.x, agent.y, id, agent.bombStrength, BOMB_LIFETIME + (duringStep ? 1 : 0), setItem);
+    }
 
     /**
-     * @brief PutAgentsInCorners Places a specified agent
-     * on the specified location and updates agent positions
-     * @param x x-position of the agent.
-     * @param y y-position of the agent.
-     * @param agentID The agent ID (from 0 to AGENT_COUNT)
+     * @brief ExplodeTopBomb Explodes the bomb at the the specified index
+     * of the queue and spawns flames.
      */
-    void PutAgent(int x, int y, int agentID);
+    void ExplodeBombAt(int index);
+
+    /**
+     * @brief SpawnFlameItem Spawns a single flame item on the board
+     * @param x The x position of the fire
+     * @param y The y position of the fire
+     * @param isCenterFlame Whether (x, y) is the bomb's position
+     * @return Should we continue spawing flames in that direction?
+     */
+    bool SpawnFlameItem(int x, int y, bool isCenterFlame);
+
+    /**
+     * @brief SpawnFlames Spawns rays of flames at the
+     * specified location.
+     * @param x The x position of the origin of flames
+     * @param y The y position of the origin of flames
+     * @param strength The farthest reachable distance
+     * from the origin
+     */
+    void SpawnFlames(int x, int y, int strength);
+
+    /**
+     * @brief PopFlame extinguishes all the top flames
+     * of the flame queue which have zero lifetime left.
+     */
+    void PopFlames();
 
     /**
      * @brief Checks whether the given agent has won.
@@ -794,9 +797,17 @@ public:
     }
     void Kill();
 
-    // Implement methods
-    void Kill(const int agentID) override;
-    void EventBombExploded(Bomb b) override;
+    /**
+     * @brief Kill Kill some agent on this board.
+     * @param agentID The id of the agent
+     */
+    void Kill(const int agentID);
+
+    /**
+     * @brief EventBombExploded Called when a bomb explodes.
+     * @param b The bomb which explodes.
+     */
+    void EventBombExploded(Bomb b);
 };
 
 /**
@@ -871,10 +882,6 @@ public:
      * @param itemAge Can be used to keep track of age of all items (#steps since last update)
      */
     void VirtualStep(State& state, bool keepAgents, bool keepBombs, int (*itemAge)[BOARD_SIZE][BOARD_SIZE] = nullptr) const;
-
-    // Implement methods
-    void Kill(const int agentID) override;
-    void EventBombExploded(Bomb b) override;
 };
 
 /**
@@ -1132,13 +1139,6 @@ public:
     */
     bool HasActed(int agentID);
 };
-
-/**
- * @brief Applies given moves to the given board state.
- * @param state The state of the board
- * @param moves Array of 4 moves
- */
-void Step(State* state, Move* moves);
 
 /**
  * @brief Prints the board into the standard output stream.

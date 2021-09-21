@@ -131,18 +131,18 @@ TEST_CASE("Planning Step", "[observation]")
     SECTION("Step")
     {
         // just check whether we can do a step
-        bboard::Step(&s2, m);
+        s2.Step(m);
     }
     SECTION("Bombs explode")
     {
         REQUIRE(!ownAgent.dead);
         m[0] = Move::BOMB;
-        bboard::Step(&s2, m);
+        s2.Step(m);
         m[0] = Move::IDLE;
 
         for(int _ = 0; _ < bboard::BOMB_LIFETIME; _++)
         {
-            bboard::Step(&s2, m);
+            s2.Step(m);
         }
 
         REQUIRE(ownAgent.dead);
@@ -227,18 +227,18 @@ TEST_CASE("Hidden Flames", "[observation]")
     m[0] = Move::BOMB;
 
     // place a bomb
-    bboard::Step(&s, m);
+    s.Step(m);
 
     // move out of range
     m[0] = Move::RIGHT;
-    bboard::Step(&s, m);
-    bboard::Step(&s, m);
+    s.Step(m);
+    s.Step(m);
 
     // wait until the bomb explodes
     m[0] = Move::IDLE;
     for (int i = 0; i < bboard::BOMB_LIFETIME - 2; i++)
     {
-        bboard::Step(&s, m);
+        s.Step(m);
     }
 
     REQUIRE(bboard::IS_FLAME(s.items[1][1]));
@@ -306,7 +306,7 @@ TEST_CASE("Merge Observations", "[observation]")
     // walk to the right until we see agent 1
     for(int i = 0; i < BOARD_SIZE - 4; i++)
     {
-        bboard::Step(&s, m);
+        s.Step(m);
 
         // the items are out of range now
         Observation::Get(s, 0, params, obs);
@@ -330,7 +330,7 @@ TEST_CASE("Merge Observations", "[observation]")
     REQUIRE(s.items[1][BOARD_SIZE - 2] == Item::AGENT1);
     m[0] = Move::BOMB;
 
-    bboard::Step(&s, m);
+    s.Step(m);
     REQUIRE(s.HasBomb(BOARD_SIZE - 3, 1));
 
     Observation::Get(s, 0, params, obs);
@@ -342,7 +342,7 @@ TEST_CASE("Merge Observations", "[observation]")
     m[0] = Move::DOWN;
 
     // bomb and target agent are directly visible on the first step
-    bboard::Step(&s, m);
+    s.Step(m);
 
     Observation::Get(s, 0, params, obs);
     REQUIRE(obs.items[1][BOARD_SIZE - 3] == Item::BOMB);
@@ -361,7 +361,7 @@ TEST_CASE("Merge Observations", "[observation]")
                 // ... but not in the following steps
                 for(int i = 0; i < BOMB_LIFETIME - 2; i++)
                 {
-                    bboard::Step(&s, m);
+                    s.Step(m);
 
                     Observation::Get(s, 0, params, obs);
                     REQUIRE(obs.items[1][BOARD_SIZE - 3] == Item::FOG);
@@ -376,7 +376,7 @@ TEST_CASE("Merge Observations", "[observation]")
                 }
 
                 // reconstructed bombs eventually explode, even out of view
-                bboard::Step(&s, m);
+                s.Step(m);
                 REQUIRE(bboard::IS_FLAME(s.items[1][BOARD_SIZE - 3]) == true);
                 REQUIRE(s.agents[1].dead == true);
 
@@ -401,14 +401,14 @@ TEST_CASE("Merge Observations", "[observation]")
                     // ... and the spawned flames eventually vanish
                     for(int i = 0; i < FLAME_LIFETIME - 1; i++)
                     {
-                        bboard::Step(&s, m);
+                        s.Step(m);
                         Observation::Get(s, 0, params, obs);
                         obs.VirtualStep(reconstructed, true, true, &itemAge);
 
                         if (print) _print_step(s, reconstructed);
                     }
 
-                    bboard::Step(&s, m);
+                    s.Step(m);
                     REQUIRE(s.items[1][BOARD_SIZE - 3] == Item::PASSAGE);
 
                     Observation::Get(s, 0, params, obs);

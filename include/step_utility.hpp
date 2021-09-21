@@ -137,23 +137,23 @@ int ResolveDependencies(const State* state, Position des[AGENT_COUNT],
  * @brief TickFlames Counts down all flames in the flame queue
  * (and possible extinguishes the flame)
  */
-void TickFlames(Board* board);
+void TickFlames(State* state);
 
 /**
  * @brief TickBombs Counts down all bomb timers
  */
-void TickBombs(Board* board);
+void TickBombs(State* state);
 
 /**
  * @brief ExplodeBombs Lights up bombs when their timer is up
  */
-void ExplodeBombs(Board* board);
+void ExplodeBombs(State* state);
 
 /**
  * @brief MoveBombsForward moves all bombs forward that have been
  * kicked before by 1 position.
  */
-void MoveBombsForward(Board* board);
+void MoveBombsForward(State* state);
 
 /**
  * @brief ConsumePowerup Lets an agent consume a powerup

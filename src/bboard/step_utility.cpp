@@ -250,41 +250,41 @@ int ResolveDependencies(const State* state, Position des[AGENT_COUNT],
     return rootCount;
 }
 
-void TickFlames(Board* board)
+void TickFlames(State* state)
 {
-    if(board->flames.count == 0)
+    if(state->flames.count == 0)
     {
         return;
     }
 
-    if(board->currentFlameTime == -1)
+    if(state->currentFlameTime == -1)
     {
         throw std::runtime_error("TickFlames only supports optimized flame queues.");
     }
 
-    board->currentFlameTime--;
-    board->flames[0].timeLeft--;
-    if(board->flames[0].timeLeft <= 0)
+    state->currentFlameTime--;
+    state->flames[0].timeLeft--;
+    if(state->flames[0].timeLeft <= 0)
     {
-        board->PopFlames();
+        state->PopFlames();
     }
 }
 
-void TickBombs(Board* board)
+void TickBombs(State* state)
 {
     // reduce timer of every bomb
-    for(int i = 0; i < board->bombs.count; i++)
+    for(int i = 0; i < state->bombs.count; i++)
     {
-        ReduceBombTimer(board->bombs[i]);
+        ReduceBombTimer(state->bombs[i]);
     }
 }
 
-void ExplodeBombs(Board* board)
+void ExplodeBombs(State* state)
 {
     // always check the current top bomb
-    while (board->bombs.count > 0 && BMB_TIME(board->bombs[0]) <= 0)
+    while (state->bombs.count > 0 && BMB_TIME(state->bombs[0]) <= 0)
     {
-        board->ExplodeBombAt(0);
+        state->ExplodeBombAt(0);
     }
 }
 
@@ -418,7 +418,7 @@ void MoveAgent(State* state, const int i, const Move m, const Position fixedDest
     }
     else if(m == Move::BOMB)
     {
-        state->TryPlantBomb<true>(a, i);
+        state->TryPutBomb<true>(i);
         return;
     }
     else if(m == Move::IDLE || fixedDest == a.GetPos())

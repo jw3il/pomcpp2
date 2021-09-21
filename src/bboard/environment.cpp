@@ -222,7 +222,7 @@ void Environment::Step(bool asyncAct)
         }
     }
 
-    bboard::Step(state.get(), m);
+    state->Step(m);
 }
 
 void Environment::Print(bool clear)
