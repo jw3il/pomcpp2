@@ -33,7 +33,7 @@ TEST_CASE("Load State", "[json]")
             bboard::State s = StateFromJSON(jState);
             if (print) {
                 std::cout << std::endl << pair.first << " > Loaded state:" << std::endl;
-                bboard::PrintState(&s);
+                s.Print();
             }
         }
     }
@@ -49,7 +49,7 @@ TEST_CASE("Load Observation", "[json]")
             bboard::Observation o = ObservationFromJSON(jObs, 0);
             if (print) {
                 std::cout << std::endl << pair.first << " > Loaded observation:" << std::endl;
-                bboard::PrintObservation(&o);
+                o.Print();
             }
         }
     }
@@ -74,7 +74,7 @@ TEST_CASE("Reconstruct State", "[json]")
 
             if (print) {
                 std::cout << std::endl << statePair.first << " > Reconstructed state:" << std::endl;
-                bboard::PrintState(&reconstructedState);
+                reconstructedState.Print();
 
                 std::cout << "Alive agents: " << realState.aliveAgents << std::endl;
             }

@@ -500,4 +500,9 @@ void Observation::VirtualStep(State& state, bool keepAgents, bool keepBombs, int
     util::CheckTerminalState(state);
 }
 
+void Observation::Print(bool clearConsole) const
+{
+    Board::Print(clearConsole);
+}
+
 }

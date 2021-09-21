@@ -187,22 +187,22 @@ void _print_flames(const Board& b)
 void _print_step(const State& s, const Observation& o)
 {
     std::cout << "Step " << s.timeStep << " > State" << std::endl;
-    bboard::PrintBoard(&s);
+    s.Print();
     _print_flames(s);
 
     std::cout << "Step " << s.timeStep << " > Observation" << std::endl;
-    bboard::PrintBoard(&o);
+    o.Print();
     _print_flames(o);
 }
 
 void _print_step(const State& s, const State& r)
 {
     std::cout << "Step " << s.timeStep << " > State" << std::endl;
-    bboard::PrintBoard(&s);
+    s.Print();
     _print_flames(s);
 
     std::cout << "Step " << r.timeStep << " > Reconstructed" << std::endl;
-    bboard::PrintBoard(&r);
+    r.Print();
     _print_flames(r);
 }
 
@@ -245,7 +245,7 @@ TEST_CASE("Hidden Flames", "[observation]")
     REQUIRE(bboard::IS_FLAME(s.items[1][2]));
 
     if (print) {
-        bboard::PrintBoard(&s);
+        s.Print();
         _print_flames(s);
     }
 
@@ -253,7 +253,7 @@ TEST_CASE("Hidden Flames", "[observation]")
     Observation::Get(s, 0, params, obs);
 
     if (print) {
-        bboard::PrintBoard(&obs);
+        obs.Print();
         _print_flames(obs);
     }
 

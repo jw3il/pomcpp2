@@ -634,6 +634,13 @@ public:
      * for the given item
      */
     static int ItemFlag(Item item);
+
+    /**
+     * @brief Prints the board into the standard output stream.
+     * 
+     * @param clearConsole Whether to clear the console before printing
+     */
+    virtual void Print(bool clearConsole = false) const;
 };
 
 /**
@@ -808,6 +815,9 @@ public:
      * @param b The bomb which explodes.
      */
     void EventBombExploded(Bomb b);
+
+
+    void Print(bool clearConsole = false) const override;
 };
 
 /**
@@ -882,6 +892,8 @@ public:
      * @param itemAge Can be used to keep track of age of all items (#steps since last update)
      */
     void VirtualStep(State& state, bool keepAgents, bool keepBombs, int (*itemAge)[BOARD_SIZE][BOARD_SIZE] = nullptr) const;
+
+    void Print(bool clearConsole = false) const override;
 };
 
 /**
@@ -1139,24 +1151,6 @@ public:
     */
     bool HasActed(int agentID);
 };
-
-/**
- * @brief Prints the board into the standard output stream.
- * @param board The board to print
- */
-void PrintBoard(const Board* board, bool clearConsole = false);
-
-/**
- * @brief Prints the state into the standard output stream.
- * @param state The state to print
- */
-void PrintState(const State* state, bool clearConsole = false);
-
-/**
- * @brief Prints the observation into the standard output stream.
- * @param obs The observation to print
- */
-void PrintObservation(const Observation* obs, bool clearConsole = false);
 
 /**
  * @brief Returns a string, corresponding to the given item

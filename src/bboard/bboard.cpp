@@ -158,6 +158,23 @@ int Board::ItemFlag(Item item)
     }
 }
 
+void Board::Print(bool clearConsole) const
+{
+    // clears console on linux
+    if(clearConsole)
+        std::cout << "\033c";
+
+    for(int y = 0; y < BOARD_SIZE; y++)
+    {
+        for(int x = 0; x < BOARD_SIZE; x++)
+        {
+            int item = items[y][x];
+            std::cout << PrintItem(item);
+        }
+        std::cout << std::endl;
+    }
+}
+
 ///////////////////
 // State Methods //
 ///////////////////
@@ -170,74 +187,6 @@ int Board::ItemFlag(Item item)
 void bboard::Agent::reset()
 {
     // default reset does nothing
-}
-
-void PrintState(const State* state, bool clearConsole)
-{
-    // clears console on linux
-    if(clearConsole)
-        std::cout << "\033c";
-
-    for(int y = 0; y < BOARD_SIZE; y++)
-    {
-        for(int x = 0; x < BOARD_SIZE; x++)
-        {
-            int item = state->items[y][x];
-            std::cout << PrintItem(item);
-        }
-
-        std::cout << "          ";
-
-        // Print AgentInfo
-        if(y < AGENT_COUNT)
-        {
-            std::cout << "Agent " << y << ": ";
-            std::cout << PrintItem(Item::EXTRABOMB) << ": " << state->agents[y].maxBombCount << " ";
-            std::cout << PrintItem(Item::INCRRANGE) << ": " << state->agents[y].bombStrength << " ";
-            std::cout << PrintItem(Item::KICK) << ": " << state->agents[y].canKick << " ";
-        }
-        else if(y == AGENT_COUNT + 1)
-        {
-            std::cout << "Bombs:  [  ";
-            for(int i = 0; i < state->bombs.count; i++)
-            {
-                std::cout << BMB_ID(state->bombs[i]) << "  ";
-            }
-            std::cout << "]";
-        }
-        else if(y == AGENT_COUNT + 2)
-        {
-            std::cout << "Flames: [  ";
-            int cumulativeTime = 0;
-            for(int i = 0; i < state->flames.count; i++)
-            {
-                if(state->flames[i].timeLeft != 0)
-                {
-                    cumulativeTime += state->flames[i].timeLeft;
-                    std::cout << cumulativeTime << "  ";
-                }
-            }
-            std::cout << "]";
-        }
-        std::cout << std::endl;
-    }
-}
-
-void PrintBoard(const Board* board, bool clearConsole)
-{
-    // clears console on linux
-    if(clearConsole)
-        std::cout << "\033c";
-
-    for(int y = 0; y < BOARD_SIZE; y++)
-    {
-        for(int x = 0; x < BOARD_SIZE; x++)
-        {
-            int item = board->items[y][x];
-            std::cout << PrintItem(item);
-        }
-        std::cout << std::endl;
-    }
 }
 
 template <typename T, int c>
@@ -256,11 +205,6 @@ void _printArray(const T arr[c])
     }
 
     std::cout << "]";
-}
-
-void PrintObservation(const Observation* obs, bool clearConsole)
-{
-    PrintBoard(obs, clearConsole);
 }
 
 std::string PrintItem(int item)

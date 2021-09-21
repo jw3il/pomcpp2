@@ -228,7 +228,7 @@ void Environment::Step(bool asyncAct)
 void Environment::Print(bool clear)
 {
     std::cout << "Step " << state->timeStep << std::endl;
-    PrintState(state.get(), clear);
+    state->Print(clear);
 }
 
 State& Environment::GetState() const

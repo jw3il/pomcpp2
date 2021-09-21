@@ -502,3 +502,71 @@ void State::EventBombExploded(Bomb b)
         agents[BMB_ID(b)].bombCount--;
     }
 }
+
+void State::Print(bool clearConsole) const
+{
+    // clears console on linux
+    if(clearConsole)
+        std::cout << "\033c";
+
+    for(int y = 0; y < BOARD_SIZE; y++)
+    {
+        for(int x = 0; x < BOARD_SIZE; x++)
+        {
+            int item = items[y][x];
+            std::cout << PrintItem(item);
+        }
+
+        std::cout << "          ";
+
+        // Print AgentInfo
+        if(y == 0)
+        {
+            std::cout << "Agent";
+        }
+        else if(y <= AGENT_COUNT)
+        {
+            int id = y - 1;
+            const AgentInfo& agent = agents[id];
+            std::cout << (agent.dead ? "X" : ">") << " " << PrintItem(Item::AGENT0 + id) << " ";
+            std::cout << PrintItem(Item::EXTRABOMB) << ": " << agent.maxBombCount << " ";
+            std::cout << PrintItem(Item::INCRRANGE) << ": " << agent.bombStrength << " ";
+            std::cout << PrintItem(Item::KICK) << ": " << agent.canKick << " ";
+        }
+        else if(y == AGENT_COUNT + 2)
+        {
+            std::cout << "Bombs:  [  ";
+            for(int i = 0; i < bombs.count; i++)
+            {
+                std::cout << BMB_ID(bombs[i]) << "  ";
+            }
+            std::cout << "]";
+        }
+        else if(y == AGENT_COUNT + 3)
+        {
+            std::cout << "Flames: [  ";
+            int cumulativeTime = 0;
+            int numFlamesWithSameTimeLeft = 0;
+            for(int i = 0; i < flames.count; i++)
+            {
+                if(flames[i].timeLeft != 0)
+                {
+                    if(i > 0)
+                    {
+                        std::cout << numFlamesWithSameTimeLeft << "(" << cumulativeTime << ")  ";
+                    }
+                    cumulativeTime += flames[i].timeLeft;
+                    numFlamesWithSameTimeLeft = 0;
+                }
+                
+                numFlamesWithSameTimeLeft++;
+            }
+            if(flames.count > 0)
+            {
+                std::cout << numFlamesWithSameTimeLeft << "(" << cumulativeTime << ")  ";
+            }
+            std::cout << "]";
+        }
+        std::cout << std::endl;
+    }
+}
