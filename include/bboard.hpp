@@ -903,6 +903,13 @@ class Message
 {
 public:
     virtual ~Message() = default;
+
+    /**
+     * @brief Clone this message.
+     * 
+     * @return A clone of this message. 
+     */
+    virtual std::unique_ptr<Message> clone() const = 0;
 };
 
 /**
@@ -917,6 +924,11 @@ class MultiWordMessage : public Message
 public:
     const std::array<T, nbWords> words;
     MultiWordMessage(std::array<T, nbWords> words) : words(words) {}
+
+    std::unique_ptr<Message> clone() const
+    {
+        return std::make_unique<MultiWordMessage<T, nbWords>>(words);
+    }
 };
 
 /**
@@ -951,11 +963,11 @@ public:
 std::ostream& operator<<(std::ostream &ostream, const PythonEnvMessage &msg);
 
 /**
- * @brief The Agent struct defines a behaviour. For a given
- * state it will return a Move.
+ * @brief The agent class defines the behaviour of an agent.
  */
-struct Agent
+class Agent
 {
+public:
     virtual ~Agent() {}
 
     /**
@@ -1009,6 +1021,21 @@ struct Agent
      * @brief Reset the state of this agent for a new episode.
      */
     virtual void reset();
+
+    /**
+     * @brief Copy the given agent (clones messages).
+     * 
+     * @param other The other agent that should be copied.
+     * @return This agent 
+     */
+    Agent& operator=(const Agent& other)
+    {
+        id = other.id;
+        // create message clones (direct copy not allowed)
+        incoming = other.incoming ? other.incoming->clone() : nullptr;
+        outgoing = other.outgoing ? other.outgoing->clone() : nullptr;
+        return *this;
+    }
 };
 
 /**
