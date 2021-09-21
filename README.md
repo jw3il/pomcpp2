@@ -16,7 +16,7 @@ This repository is an open-source re-implementation of the [Pommerman](https://w
 - [x] Python Interface for C++ Agent Implementations
 - [x] Improved SimpleAgents
 - [x] GitHub Actions
-- [ ] Communication
+- [x] Communication
 - [ ] Variable board size (without recompilation)
 
 ## Prerequisites
