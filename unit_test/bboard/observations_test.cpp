@@ -183,6 +183,7 @@ void _print_flames(const Board& b)
         std::cout << b.flames[b.flames.count - 1].timeLeft << std::endl;
     }
 }
+
 void _print_step(const State& s, const Observation& o)
 {
     std::cout << "Step " << s.timeStep << " > State" << std::endl;
@@ -192,6 +193,17 @@ void _print_step(const State& s, const Observation& o)
     std::cout << "Step " << s.timeStep << " > Observation" << std::endl;
     bboard::PrintBoard(&o);
     _print_flames(o);
+}
+
+void _print_step(const State& s, const State& r)
+{
+    std::cout << "Step " << s.timeStep << " > State" << std::endl;
+    bboard::PrintBoard(&s);
+    _print_flames(s);
+
+    std::cout << "Step " << r.timeStep << " > Reconstructed" << std::endl;
+    bboard::PrintBoard(&r);
+    _print_flames(r);
 }
 
 TEST_CASE("Hidden Flames", "[observation]")
@@ -274,7 +286,7 @@ TEST_CASE("Merge Observations", "[observation]")
     Observation obs;
     Observation::Get(s, 0, params, obs);
 
-    if (print) _print_step(s, obs);
+    // if (print) _print_step(s, obs);
 
     // all the items are within our view range
     REQUIRE(obs.items[0][0] == Item::RIGID);
@@ -288,28 +300,29 @@ TEST_CASE("Merge Observations", "[observation]")
     int itemAge[BOARD_SIZE][BOARD_SIZE];
     std::fill_n(&itemAge[0][0], BOARD_SIZE * BOARD_SIZE, 0);
 
-    Observation newObs;
+    State reconstructed;
+    obs.ToState(reconstructed);
+
     // walk to the right until we see agent 1
     for(int i = 0; i < BOARD_SIZE - 4; i++)
     {
         bboard::Step(&s, m);
 
         // the items are out of range now
-        Observation::Get(s, 0, params, newObs);
-        REQUIRE(newObs.items[0][0] == Item::FOG);
-        REQUIRE(newObs.items[1][0] == Item::FOG);
-        REQUIRE(newObs.items[2][0] == Item::FOG);
+        Observation::Get(s, 0, params, obs);
+        REQUIRE(obs.items[0][0] == Item::FOG);
+        REQUIRE(obs.items[1][0] == Item::FOG);
+        REQUIRE(obs.items[2][0] == Item::FOG);
 
         // but can be reconstructed
-        newObs.Merge(obs, params, false, false, &itemAge);
-        REQUIRE(newObs.items[0][0] == Item::RIGID);
-        REQUIRE(newObs.items[1][0] == Item::WOOD);
-        REQUIRE(newObs.items[2][0] == Item::PASSAGE);
+        obs.VirtualStep(reconstructed, false, false, &itemAge);
+        REQUIRE(reconstructed.items[0][0] == Item::RIGID);
+        REQUIRE(reconstructed.items[1][0] == Item::WOOD);
+        REQUIRE(reconstructed.items[2][0] == Item::PASSAGE);
         REQUIRE(itemAge[0][0] == (i + 1));
         REQUIRE(itemAge[1][1 + i] == 0);
-        obs = newObs;
 
-        if (print) _print_step(s, obs);
+        // if (print) _print_step(s, reconstructed);
     }
 
     // place a bomb next to agent 1
@@ -320,11 +333,10 @@ TEST_CASE("Merge Observations", "[observation]")
     bboard::Step(&s, m);
     REQUIRE(s.HasBomb(BOARD_SIZE - 3, 1));
 
-    Observation::Get(s, 0, params, newObs);
-    newObs.Merge(obs, params, false, false, &itemAge);
-    obs = newObs;
+    Observation::Get(s, 0, params, obs);
+    obs.VirtualStep(reconstructed, false, false, &itemAge);
 
-    if (print) _print_step(s, obs);
+    // if (print) _print_step(s, reconstructed);
 
     // run away downwards
     m[0] = Move::DOWN;
@@ -332,18 +344,17 @@ TEST_CASE("Merge Observations", "[observation]")
     // bomb and target agent are directly visible on the first step
     bboard::Step(&s, m);
 
-    Observation::Get(s, 0, params, newObs);
-    REQUIRE(newObs.items[1][BOARD_SIZE - 3] == Item::BOMB);
-    REQUIRE(newObs.items[1][BOARD_SIZE - 2] == Item::AGENT1);
+    Observation::Get(s, 0, params, obs);
+    REQUIRE(obs.items[1][BOARD_SIZE - 3] == Item::BOMB);
+    REQUIRE(obs.items[1][BOARD_SIZE - 2] == Item::AGENT1);
 
-    newObs.Merge(obs, params, false, false, &itemAge);
-    obs = newObs;
+    obs.VirtualStep(reconstructed, false, false, &itemAge);
 
-    if (print) _print_step(s, obs);
+    if (print) _print_step(s, reconstructed);
 
-    for (bool trackBombs : {true, false})
+    for (bool trackBombs : {false, true})
     {
-        for(bool trackAgents : {true, false})
+        for(bool trackAgents : {false, true})
         {
             SECTION("Track Bombs (" + std::to_string(trackBombs) + ") and Agents (" + std::to_string(trackAgents) + ")")
             {
@@ -352,17 +363,16 @@ TEST_CASE("Merge Observations", "[observation]")
                 {
                     bboard::Step(&s, m);
 
-                    Observation::Get(s, 0, params, newObs);
-                    REQUIRE(newObs.items[1][BOARD_SIZE - 3] == Item::FOG);
-                    REQUIRE(newObs.items[1][BOARD_SIZE - 2] == Item::FOG);
+                    Observation::Get(s, 0, params, obs);
+                    REQUIRE(obs.items[1][BOARD_SIZE - 3] == Item::FOG);
+                    REQUIRE(obs.items[1][BOARD_SIZE - 2] == Item::FOG);
 
                     // however, they can be reconstructed
-                    newObs.Merge(obs, params, trackAgents, trackBombs, &itemAge);
-                    REQUIRE_ITEM_IF(newObs.items[1][BOARD_SIZE - 3], trackBombs, Item::BOMB, Item::PASSAGE);
-                    REQUIRE_ITEM_IF(newObs.items[1][BOARD_SIZE - 2], trackAgents, Item::AGENT1, Item::PASSAGE);
-                    obs = newObs;
+                    obs.VirtualStep(reconstructed, trackAgents, trackBombs, &itemAge);
+                    if (print) _print_step(s, reconstructed);
 
-                    if (print) _print_step(s, obs);
+                    REQUIRE_ITEM_IF(reconstructed.items[1][BOARD_SIZE - 3], trackBombs, Item::BOMB, Item::PASSAGE);
+                    REQUIRE_ITEM_IF(reconstructed.items[1][BOARD_SIZE - 2], trackAgents, Item::AGENT1, Item::PASSAGE);
                 }
 
                 // reconstructed bombs eventually explode, even out of view
@@ -370,22 +380,21 @@ TEST_CASE("Merge Observations", "[observation]")
                 REQUIRE(bboard::IS_FLAME(s.items[1][BOARD_SIZE - 3]) == true);
                 REQUIRE(s.agents[1].dead == true);
 
-                Observation::Get(s, 0, params, newObs);
-                REQUIRE(newObs.items[1][BOARD_SIZE - 3] == Item::FOG);
+                Observation::Get(s, 0, params, obs);
+                REQUIRE(obs.items[1][BOARD_SIZE - 3] == Item::FOG);
 
-                newObs.Merge(obs, params, trackAgents, trackBombs, &itemAge);
+                obs.VirtualStep(reconstructed, trackAgents, trackBombs, &itemAge);
+                if (print) _print_step(s, reconstructed);
+
                 // center of the bomb
-                REQUIRE_FLAME_IF(newObs.items[1][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
+                REQUIRE_FLAME_IF(reconstructed.items[1][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
                 // other flame items
-                REQUIRE_FLAME_IF(newObs.items[2][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
-                REQUIRE_FLAME_IF(newObs.items[0][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
-                REQUIRE_FLAME_IF(newObs.items[1][BOARD_SIZE - 2], trackBombs, trackAgents ? Item::AGENT1 : Item::PASSAGE);
-                REQUIRE_FLAME_IF(newObs.items[1][BOARD_SIZE - 4], trackBombs, Item::PASSAGE);
-                REQUIRE(newObs.agents[1].dead == true);
+                REQUIRE_FLAME_IF(reconstructed.items[2][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
+                REQUIRE_FLAME_IF(reconstructed.items[0][BOARD_SIZE - 3], trackBombs, Item::PASSAGE);
+                REQUIRE_FLAME_IF(reconstructed.items[1][BOARD_SIZE - 2], trackBombs, trackAgents ? Item::AGENT1 : Item::PASSAGE);
+                REQUIRE_FLAME_IF(reconstructed.items[1][BOARD_SIZE - 4], trackBombs, Item::PASSAGE);
+                REQUIRE(reconstructed.agents[1].dead == true);
                 REQUIRE(itemAge[1][BOARD_SIZE - 3] == BOMB_LIFETIME - 1);
-                obs = newObs;
-
-                if (print) _print_step(s, obs);
 
                 if(trackBombs)
                 {
@@ -393,24 +402,21 @@ TEST_CASE("Merge Observations", "[observation]")
                     for(int i = 0; i < FLAME_LIFETIME - 1; i++)
                     {
                         bboard::Step(&s, m);
-                        Observation::Get(s, 0, params, newObs);
-                        newObs.Merge(obs, params, true, true, &itemAge);
-                        obs = newObs;
+                        Observation::Get(s, 0, params, obs);
+                        obs.VirtualStep(reconstructed, true, true, &itemAge);
 
-                        if (print) _print_step(s, obs);
+                        if (print) _print_step(s, reconstructed);
                     }
 
                     bboard::Step(&s, m);
                     REQUIRE(s.items[1][BOARD_SIZE - 3] == Item::PASSAGE);
 
-                    Observation::Get(s, 0, params, newObs);
-                    REQUIRE(newObs.items[1][BOARD_SIZE - 3] == Item::FOG);
+                    Observation::Get(s, 0, params, obs);
+                    REQUIRE(obs.items[1][BOARD_SIZE - 3] == Item::FOG);
 
-                    newObs.Merge(obs, params, trackAgents, trackBombs, &itemAge);
-                    REQUIRE(newObs.items[1][BOARD_SIZE - 3] == Item::PASSAGE);
-                    obs = newObs;
-
-                    if (print) _print_step(s, obs);
+                    obs.VirtualStep(reconstructed, trackAgents, trackBombs, &itemAge);
+                    if (print) _print_step(s, reconstructed);
+                    REQUIRE(reconstructed.items[1][BOARD_SIZE - 3] == Item::PASSAGE);
                 }
             }
         }

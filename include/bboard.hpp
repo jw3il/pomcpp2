@@ -855,7 +855,7 @@ public:
     static void Get(const State& state, const uint agentID, const ObservationParameters obsParams, Observation& observation);
 
     /**
-     * @brief ToState Converts this observation to a (potentially incomplete) state. This allows you to execute steps on that observation. 
+     * @brief Converts this observation to a (potentially incomplete) state. This allows you to execute steps on that observation. 
      * If an agent's stats are not visible in this observation, the stats from the given state are used instead. 
      * 
      * @param state The state object that will be used to save the state.
@@ -863,15 +863,14 @@ public:
     void ToState(State& state) const;
 
     /**
-     * @brief Merges another observation into this observation.
+     * @brief Execute a virtual step by merging this observation (timestep t+1) into the given state (timestep t).
      * 
-     * @param last The observation of the last step which should be merged into this one.
-     * @param params The observation parameters used to generate both observations (this and the last one).
-     * @param agents Whether to include agents (also removes duplicates)
-     * @param bombs Whether to include bombs (DOES NOT remove duplicates!)
+     * @param state The last state that will be updated with the information from this observation.
+     * @param keepAgents Whether to keep old agents (also removes duplicates)
+     * @param keepBombs Whether to keep old bombs (DOES NOT remove duplicates!)
      * @param itemAge Can be used to keep track of age of all items (#steps since last update)
      */
-    void Merge(const Observation& last, const ObservationParameters& params, bool agents, bool bombs, int (*itemAge)[BOARD_SIZE][BOARD_SIZE] = nullptr);
+    void VirtualStep(State& state, bool keepAgents, bool keepBombs, int (*itemAge)[BOARD_SIZE][BOARD_SIZE] = nullptr) const;
 
     // Implement methods
     void Kill(const int agentID) override;
