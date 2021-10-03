@@ -10,7 +10,8 @@ build/
 
 py/.idea
 py/pypomcpp/__pycache__
-local_lib_copy_*.so
+py/example/__pycache__
+py/pypomcpp.egg-info
 
 CMakeLists.txt.user
 

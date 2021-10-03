@@ -1,8 +1,11 @@
+import socketserver
+
 import pommerman
 from pommerman.constants import GameType
 from pommerman.envs.v0 import Pomme
 import time
 import numpy as np
+
 
 def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
     """
@@ -35,6 +38,12 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
             step += 1
+
+            if verbose and step % 10 == 0:
+                delta = time.time() - start
+                print('\r{:.2f} sec > Episode {} running.. step {}'.format(
+                    delta, i_episode, step
+                ), end='')
 
             if stop:
                 input()
@@ -117,3 +126,16 @@ def get_stats(results, episodes):
     num_ties = np.sum(results[0:episodes, 0] == pommerman.constants.Result.Tie.value)
 
     return num_won, num_ties
+
+
+def get_free_port():
+    """
+    Get a random free port.
+
+    :return: a free port.
+    """
+
+    # noinspection PyTypeChecker
+    # see https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
+    with socketserver.TCPServer(("localhost", 0), None) as s:
+        return s.server_address[1]

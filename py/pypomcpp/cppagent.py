@@ -11,6 +11,10 @@ import json
 
 
 class CppAgent(agents.BaseAgent):
+    """
+    Wrapper for pomcpp agents implemented in c++.
+    """
+
     def __init__(self, library_path, agent_name: str, seed: int = 42, print_json=False):
         super().__init__()
         self.agent_name = agent_name
@@ -36,9 +40,31 @@ class CppAgent(agents.BaseAgent):
         self.sum_agent_act_time = 0.0
 
     def use_env_state(self, env: Pomme):
+        """
+        Use the state from the given environment instead of the actual observation when act is called.
+
+        :param env: The environment
+        """
         self.env = env
 
+    @staticmethod
+    def use_env_state_list(agent_list, env: Pomme):
+        """
+        Calls use_env_state for each CppAgent in the given list of agents.
+
+        :param agent_list: A list of agents
+        :param env: The environment
+        """
+        for a in agent_list:
+            if isinstance(a, CppAgent):
+                a.use_env_state(env)
+
     def get_state_json(self):
+        """
+        Get the current environment state as json.
+
+        :return: the current environment state as json.
+        """
         env: Pomme = self.env
 
         state = {
@@ -97,23 +123,36 @@ class CppAgent(agents.BaseAgent):
         # print("Python side: Agent wants to do do move ", move, " = ", Action(move))
 
         if isinstance(action_space, Discrete):
-            return move
+            assert action_space.n == 6
+            has_communication = False
+        elif isinstance(action_space, int):
+            assert action_space == 6
+            has_communication = False
         elif isinstance(action_space, Tuple):
+            assert (len(action_space.spaces) == 3 and action_space.spaces[0].n == 6
+                    and action_space.spaces[1].n == action_space.spaces[2].n == 8)
+            has_communication = True
+        elif isinstance(action_space, list):
+            assert (len(action_space) == 3 and action_space[0] == 6 and action_space[1] == action_space[2] == 8)
+            has_communication = True
+        else:
+            raise ValueError("Unknown action space ", action_space)
+
+        if has_communication:
+            return move
+        else:
             # default message value is 0
             word_0 = ctypes.c_int(0)
             word_1 = ctypes.c_int(0)
             self.get_message(ctypes.byref(word_0), ctypes.byref(word_1))
 
             return [move, word_0.value, word_1.value]
-        else:
-            raise ValueError("Unknown action space ", action_space)
 
     def init_agent(self, id, game_type):
         super().init_agent(id, game_type)
 
         if game_type != pommerman.constants.GameType.FFA and game_type != pommerman.constants.GameType.Team \
                 and game_type != pommerman.constants.GameType.TeamRadio:
-            
             raise ValueError(f"GameType {str(game_type)} is not supported!")
 
         self.id = id

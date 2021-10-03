@@ -3,5 +3,5 @@ mkdir -p Release
 cd Release
 cmake -DCMAKE_BUILD_TYPE=Release ..
 
-make pomcpp_test
+make pomcpp_test -j$(nproc)
 (./pomcpp_test "[live testing]")

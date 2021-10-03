@@ -1,6 +1,10 @@
 import ctypes
 
-class CLib():
+
+class CLib:
+    """
+    Loads a library via ctypes.cdll.LoadLibrary and ensures that you don't load the same library twice.
+    """
     loaded_libs = []
 
     def __init__(self, library_path) -> None:

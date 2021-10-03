@@ -17,7 +17,6 @@ This repository is an open-source re-implementation of the [Pommerman](https://w
 - [x] Improved SimpleAgents
 - [x] GitHub Actions
 - [x] Communication
-- [ ] Variable board size (without recompilation)
 
 ## Prerequisites
 
@@ -46,9 +45,11 @@ $ git clone https://github.com/jw3il/pomcpp2
 
 Instead of using the shell scripts you can obviously use make commands and call/debug the binaries yourself. Take a look at the `CMakeLists.txt` for the available targets.
 
-## Use Pommerman C++ as a library
+## Build as shared library
 
-Building the project with `make pomcpp_lib` compiles a shared library called `libpomcpp.so`. This contains the `bboard` and `agents` namespace. Include the headers in `./include/*` and you're good to go.
+Building the project with `make pomcpp_lib` creates a shared library called `libpomcpp.so`. This contains the `bboard` and `agents` namespace. Include the headers in `./include/*` and you're good to go.
+
+This library can also be used to include you c++ agents in Python and to build docker images. More details can be found in the python interface section.
 
 ## Project Structure
 
@@ -72,6 +73,110 @@ All environment specific functions (forward, board init, board masking etc) resi
 in the `agents` header and implemented in the same module.
 
 All test cases will be in the module `unit_test`. The bboard should be tested thoroughly so it exactly matches the specified behaviour of Pommerman. The compiled `test` binary can be found in `/bin`
+
+## Defining Agents
+
+To create a new agent you can use the base struct defined in `bboard.hpp`. To add your own agent, declare it in
+`agents/agents.hpp` and provide a source file in the same module. For example:
+
+agents.hpp (excerpt)
+```C++
+/**
+ * @brief Uses a hand-crafted FSM with stochastic noise
+ */
+struct MyNewAgent : bboard::Agent
+{
+    bboard::Move act(const bboard::State* state) override;
+};
+```
+
+fsm_agent.cpp
+```C++
+#include "bboard.hpp"
+#include "agents.hpp"
+
+namespace agents
+{
+
+bboard::Move MyNewAgent::act(const bboard::State* state)
+{
+    // TODO: Implement your logic
+    return bboard::Move::IDLE;
+}
+
+}
+```
+
+## Python Interface
+
+The python interface consists of two main parts:
+
+* The `PyInterface` namespace (see `include/pymethods.hpp`) allows to control objects of type `bboard::Agent` externally.  
+* The `pypomcpp` python package (see `py/pypomcpp`) calls the functions defined in `PyInterface` via `ctypes`.
+
+#### Prerequisites
+
+Install the `pypomcpp` package
+
+```
+pip install py
+```
+
+#### How to use the interface
+
+1. Optional: Add your own agent to `src/pyinterface/new_agent.cpp`
+    ```C++
+    bboard::Agent* PyInterface::new_agent(std::string agentName, long seed)
+    {
+        ...
+        else if(agentName == "MyNewAgent")
+        {
+            return new agents::MyNewAgent();
+        }
+        ...
+    }
+    ```
+2. Build `pomcpp` as a shared library (including your agent)
+4. Load your agent in Python using `pypomcpp`
+    ```Python
+    from pypomcpp import CppAgent
+    my_agent = CppAgent('libpomcpp.so', 'MyNewAgent')
+    ```
+
+Note that you have to create copies of your shared library if you want to instantiate multiple agents.
+This can be done automatically with `AutoCopy`, you can find an example in `py/example/example.py`.
+
+## Docker
+
+You can build Docker images to run your custom agents on other systems without having to worry about dependency management.
+
+The `pommerman` package already contains the functionality to run agents via Docker containers.
+You can use `pypomcpp/cppagent_runner.py` as an entry point in your Dockerfile to listen for instructions from `pommerman`.
+
+An example Dockerfile is included in this repository.
+
+You can build the image
+
+```
+docker build -t pomcpp2:latest . 
+```
+
+And verify that is runs
+
+```
+docker run --rm --name pomcpp2_container pomcpp2 --agent-name MyNewAgent --verbose True
+```
+
+If everything looks okay, you can use your image in Python
+
+```Python
+DockerAgent("pomcpp2", free_port(), env_vars=dict(
+  agent_name="MyNewAgent",
+  verbose=False
+))
+```
+
+Note that you can directly pass arguments to your agent's docker container using the `env_vars`.
 
 ## Testing
 
@@ -103,43 +208,9 @@ I use a lot:
 | `./pomcpp_test "[step function]"` | Tests only the step function  |
 | `./pomcpp_test ~"[agent statistics]" ~"[performance]"` | Runs all test except the performance and agent stat cases |
 
-## Defining Agents
-
-To create a new agent you can use the base struct defined in `bboard.hpp`. To add your own agent, declare it in
-`agents/agents.hpp`and provide a source file in the same module. For example:
-
-agents.hpp (excerpt)
-```C++
-/**
- * @brief Uses a hand-crafted FSM with stochastic noise
- */
-struct MyNewAgent : bboard::Agent
-{
-    bboard::Move act(const bboard::State* state) override;
-};
-```
-
-fsm_agent.cpp
-```C++
-#include "bboard.hpp"
-#include "agents.hpp"
-
-namespace agents
-{
-
-bboard::Move MyNewAgent::act(const bboard::State* state)
-{
-    // TODO: Implement your logic
-    return bboard::Move::IDLE;
-}
-
-}
-```
-
 ## Contributors
 
 Special thanks to [Márton Görög (gorogm)](https://github.com/gorogm) for providing insights, bug fixes and crucial test cases.
-
 
 ## Citing This Repo
 
