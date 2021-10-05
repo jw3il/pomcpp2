@@ -5,7 +5,7 @@
 
 *Disclaimer: This project started as a fork of [pomcpp](https://github.com/m2q/pomcpp) by Adrian Alic. It fixes some bugs and provides new features.*
 
-This repository is an open-source re-implementation of the [Pommerman](https://www.pommerman.com/) multi-agent RL environment. Its aim is to provide a blazing fast and alternative to the current python backend - ideally to make computationally expensive methods like tree search feasible. The simulation has no heap allocations. This is how the C++ side currently looks like.
+This repository is an open-source re-implementation of the [Pommerman](https://www.pommerman.com/) multi-agent RL environment. Its aim is to provide a blazing fast alternative to the current python backend - ideally to make computationally expensive methods like tree search feasible. The simulation has (almost) no heap allocations. This is how the C++ side currently looks like.
 
 ![gif of the game](docs/gifs/08_08.gif)
 
@@ -210,14 +210,19 @@ I use a lot:
 
 ## Contributors
 
+The [pomcpp](https://github.com/m2q/pomcpp) project was originally created by [Adrian Alic (m2q)](https://github.com/m2q).
+This repository builds upon their work, fixes some bugs and provides new features.
+
 Special thanks to [Márton Görög (gorogm)](https://github.com/gorogm) for providing insights, bug fixes and crucial test cases.
+
+Many thanks to [Johannes Czech (QueensGambit)](https://github.com/QueensGambit) for providing valuable suggestions regarding new features, bug fixes and the usability of the environment.
 
 ## Citing This Repo
 
 ```
-@misc{Alic2018,
-  author = {Alic, Adrian and Weil, Jannis},
-  title = {Pommerman C++ Implementation},
+@misc{weil2021pomcpp2,
+  author = {Weil, Jannis and Alic, Adrian},
+  title = {pomcpp2: Pommerman Environment in {C++}},
   year = {2021},
   publisher = {GitHub},
   journal = {GitHub repository},
