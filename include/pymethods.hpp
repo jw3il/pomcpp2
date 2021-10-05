@@ -18,7 +18,7 @@ namespace PyInterface
      * @param seed Use this seed to initialize the agent if it includes randomness
      * @return A pointer to the created agent (or nullptr)
      */
-    bboard::Agent* new_agent(std::string agentName, long seed);
+    std::unique_ptr<bboard::Agent> new_agent(std::string agentName, long seed);
 }
 
 extern "C" {

@@ -26,7 +26,7 @@ bool agent_create(char* agentName, long seed)
         return false;
     }
 
-    PyInterface::agent.reset(createdAgent);
+    PyInterface::agent = std::move(createdAgent);
     PyInterface::agentHasId = false;
 
     return true;

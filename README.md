@@ -116,7 +116,7 @@ The python interface consists of two main parts:
 
 #### Prerequisites
 
-Install the `pypomcpp` package
+Install the `pypomcpp` package (optionally with `-e` if you want to keep it editable)
 
 ```
 pip install py
@@ -126,12 +126,12 @@ pip install py
 
 1. Optional: Add your own agent to `src/pyinterface/new_agent.cpp`
     ```C++
-    bboard::Agent* PyInterface::new_agent(std::string agentName, long seed)
+    std::unique_ptr<bboard::Agent> PyInterface::new_agent(std::string agentName, long seed)
     {
         ...
         else if(agentName == "MyNewAgent")
         {
-            return new agents::MyNewAgent();
+            return std::make_unique<agents::MyNewAgent>();
         }
         ...
     }
