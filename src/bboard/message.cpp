@@ -6,7 +6,7 @@ namespace bboard
 
 bool PythonEnvMessage::IsValid()
 {
-    return words[0] >= 0 && words[0] <= 7 && words[1] >= 0 && words[1] <= 7;
+    return words[0] >= 1 && words[0] <= 8 && words[1] >= 1 && words[1] <= 8;
 }
 
 std::ostream& operator<<(std::ostream &ostream, const PythonEnvMessage &msg) {

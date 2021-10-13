@@ -17,15 +17,15 @@ TEST_CASE("Python Environment Messages", "[message]")
         PythonEnvMessage msg2(7, 7);
         REQUIRE(msg2.IsValid());
 
-        PythonEnvMessage msg3(0, 0);
+        PythonEnvMessage msg3(1, 1);
         REQUIRE(msg3.IsValid());
 
-        PythonEnvMessage msg4(4, 4);
+        PythonEnvMessage msg4(4, 8);
         REQUIRE(msg4.IsValid());
     }
     SECTION("Invalid Messages")
     {
-        PythonEnvMessage msg(8, 2);
+        PythonEnvMessage msg(9, 2);
         REQUIRE(!msg.IsValid());
 
         PythonEnvMessage msg2(1, 19);
@@ -34,7 +34,7 @@ TEST_CASE("Python Environment Messages", "[message]")
         PythonEnvMessage msg3(-1, 0);
         REQUIRE(!msg3.IsValid());
 
-        PythonEnvMessage msg4(3, -5);
+        PythonEnvMessage msg4(0, 0);
         REQUIRE(!msg4.IsValid());
     }
 }
