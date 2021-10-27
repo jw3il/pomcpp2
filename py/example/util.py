@@ -62,7 +62,7 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
             ))
 
             if i_episode % 10 == 9 and i_episode != episodes - 1:
-                print_stats(env, results, steps, i_episode)
+                print_stats(env, results, steps, i_episode + 1)
 
     env.close()
 
@@ -96,7 +96,6 @@ def team_print_stats(results, steps, episodes):
     print("> Team 1 (Agent 1, 3): {} ({:.2f}%)".format(
         num_won[1], 0 if total_won == 0 else num_won[1] / total_won * 100))
 
-    num_ties = np.sum(results[:, 0] == pommerman.constants.Result.Tie.value)
     print("Ties: {} ({:.2f}%)".format(num_ties, num_ties / episodes * 100))
 
     assert np.sum(num_won) / 2 + num_ties == episodes
@@ -113,7 +112,6 @@ def ffa_print_stats(results, steps, episodes):
     for a in range(len(num_won)):
         print("> Agent {}: {} ({:.2f}%)".format(a, num_won[a], num_won[a] / total_won * 100))
 
-    num_ties = np.sum(results[:, 0] == pommerman.constants.Result.Tie.value)
     print("Ties: {} ({:.2f}%)".format(num_ties, num_ties / episodes * 100))
 
     assert np.sum(num_won) + num_ties == episodes
