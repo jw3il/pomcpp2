@@ -139,14 +139,14 @@ class CppAgent(agents.BaseAgent):
             raise ValueError("Unknown action space ", action_space)
 
         if has_communication:
-            return move
-        else:
             # default message value is 0
             word_0 = ctypes.c_int(0)
             word_1 = ctypes.c_int(0)
             self.get_message(ctypes.byref(word_0), ctypes.byref(word_1))
 
             return [move, word_0.value, word_1.value]
+        else:
+            return move
 
     def init_agent(self, id, game_type):
         super().init_agent(id, game_type)
