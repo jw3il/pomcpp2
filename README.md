@@ -77,20 +77,20 @@ All test cases will be in the module `unit_test`. The bboard should be tested th
 ## Defining Agents
 
 To create a new agent you can use the base struct defined in `bboard.hpp`. To add your own agent, declare it in
-`agents/agents.hpp` and provide a source file in the same module. For example:
+`include/agents.hpp` (excerpt)
 
-agents.hpp (excerpt)
 ```C++
 /**
  * @brief Uses a hand-crafted FSM with stochastic noise
  */
 struct MyNewAgent : bboard::Agent
 {
-    bboard::Move act(const bboard::State* state) override;
+    bboard::Move act(const bboard::Observation* obs) override;
 };
 ```
 
-fsm_agent.cpp
+and then add the coresponding definition in a (new) source file, e.g. `src/agents/my_new_agent.cpp`
+
 ```C++
 #include "bboard.hpp"
 #include "agents.hpp"
@@ -98,7 +98,7 @@ fsm_agent.cpp
 namespace agents
 {
 
-bboard::Move MyNewAgent::act(const bboard::State* state)
+bboard::Move MyNewAgent::act(const bboard::Observation* obs)
 {
     // TODO: Implement your logic
     return bboard::Move::IDLE;
