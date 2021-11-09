@@ -89,7 +89,7 @@ struct MyNewAgent : bboard::Agent
 };
 ```
 
-and then add the coresponding definition in a (new) source file, e.g. `src/agents/my_new_agent.cpp`
+and then add the corresponding definition to a (new) source file, e.g. `src/agents/my_new_agent.cpp`
 
 ```C++
 #include "bboard.hpp"
