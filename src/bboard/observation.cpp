@@ -43,6 +43,11 @@ inline void _filterFlames(const State& state, Observation& obs, Position pos, in
     obs.currentFlameTime = util::OptimizeFlameQueue(obs);
 }
 
+inline bool _agentVisibleInObservation(int x1, int y1, const AgentInfo& agent, const ObservationParameters& obsParams)
+{
+    return agent.visible && (!obsParams.agentPartialMapView || InViewRange(x1, y1, agent.x, agent.y, obsParams.agentViewSize));
+}
+
 void Observation::Get(const State& state, const uint agentID, const ObservationParameters obsParams, Observation& observation)
 {
     observation.agentID = agentID;
@@ -160,7 +165,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
         const AgentInfo& other = state.agents[i];
         AgentInfo& otherObservation = observation.agents[i];
 
-        if(InViewRange(self.x, self.y, other.x, other.y, obsParams.agentViewSize))
+        if(_agentVisibleInObservation(self.x, self.y, other, obsParams))
         {
             // other agent is visible
             switch (obsParams.agentInfoVisibility)
@@ -181,7 +186,8 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
         }
         else
         {
-            // other agent is visible
+            // other agent is not visible in state or not in view range
+
             if (obsParams.agentInfoVisibility == bboard::AgentInfoVisibility::All)
             {
                 // stats are visible, initialize default
@@ -194,6 +200,7 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
 
             // ..but the agent itself is not visible!
             otherObservation.visible = false;
+
             // we don't know much about this agent and want to ignore it
             // use unique positions out of bounds to be compatible with the destination checks
             otherObservation.x = -i;
