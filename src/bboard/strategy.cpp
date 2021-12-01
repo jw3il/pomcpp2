@@ -169,8 +169,8 @@ Move MoveTowardsEnemy(const Board& b, const RMap& r, int agentID, int radius)
     {
         const AgentInfo& other = b.agents[i];
 
-        // ignore self, dead agents and teammates
-        if(i == agentID || other.dead || !a.IsEnemy(other)) continue;
+        // ignore self, dead agents, invisible agents and teammates
+        if(i == agentID || other.dead || !other.visible || !a.IsEnemy(other)) continue;
 
         if(std::abs(other.x - a.x) + std::abs(other.y - a.y) > radius)
         {
@@ -302,8 +302,8 @@ bool IsAdjacentEnemy(const Board& b, int agentID, int distance)
     {
         const AgentInfo& other = b.agents[i];
 
-        // ignore self, dead agents and teammates
-        if(i == agentID || other.dead || !a.IsEnemy(other)) continue;
+        // ignore self, dead agents, invisible agents and teammates
+        if(i == agentID || other.dead || !other.visible || !a.IsEnemy(other)) continue;
 
         // manhattan dist
         if((std::abs(other.x - a.x) + std::abs(other.y - a.y)) <= distance)

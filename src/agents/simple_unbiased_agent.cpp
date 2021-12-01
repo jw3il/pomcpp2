@@ -138,22 +138,21 @@ Move _UMoveTowardsSafePlace(const SimpleUnbiasedAgent &me, const Board& b, const
 
 Move _UMoveTowardsEnemy(const SimpleUnbiasedAgent &me, const Board& b, const RMap& r, int radius)
 {
-
     const AgentInfo& a = b.agents[me.id];
 
     for(int i : me.agentAxis)
     {
         const AgentInfo& other = b.agents[i];
 
-        // ignore self, dead agents and teammates
-        if(i == me.id || other.dead || !a.IsEnemy(other)) continue;
+        // ignore self, dead agents, invisible agents and teammates
+        if(i == me.id || other.dead || !other.visible || !a.IsEnemy(other)) continue;
 
         if(std::abs(other.x - a.x) + std::abs(other.y - a.y) > radius)
         {
             continue;
         }
         // only move towards agents which we can actually reach
-        else if(r.GetDistance(other.x, other. y) != 0)
+        else if(r.GetDistance(other.x, other.y) != 0)
         {
             return MoveTowardsPosition(r, {other.x, other.y});
         }
