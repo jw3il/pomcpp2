@@ -540,7 +540,7 @@ void MoveBombs(State* state)
         else if(tItem == Item::FOG)
         {
             // the bomb just disappears when it moves out of range
-            if(!state->HasBomb(pos.x, pos.y) && oItem == Item::BOMB)
+            if(oItem == Item::BOMB)
             {
                 oItem = Item::PASSAGE;
             }

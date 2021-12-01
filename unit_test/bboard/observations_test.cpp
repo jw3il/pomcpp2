@@ -265,6 +265,58 @@ TEST_CASE("Hidden Flames", "[observation]")
     REQUIRE(obs.flames[0].timeLeft == bboard::FLAME_LIFETIME);
 }
 
+TEST_CASE("Bomb moves into fog", "[observation]")
+{
+    bool print = false;
+
+    ObservationParameters params;
+    params.agentPartialMapView = true;
+    params.agentViewSize = 1;
+
+    State trueState;
+    trueState.Clear(Item::PASSAGE);
+    trueState.timeStep = 0;
+
+    trueState.PutAgentsInCorners(0, 1, 2, 3, 1);
+    Move m[AGENT_COUNT];
+    std::fill_n(m, AGENT_COUNT, Move::IDLE);
+
+    // get planning state s
+    Observation obs;
+    Observation::Get(trueState, 0, params, obs);
+    State s;
+    obs.ToState(s);
+
+    // place a bomb that moves to the right
+    s.PutBomb(0, 0, 0, 2, 4, true);
+    Bomb& b = *s.GetBomb(0, 0);
+    SetBombDirection(b, bboard::Direction::RIGHT);
+
+    if (print) {
+        s.Print();
+    }
+    REQUIRE(s.items[0][0] == Item::BOMB);
+    REQUIRE(s.bombs.count == 1);
+    s.Step(m);
+    if (print) {
+        s.Print();
+    }
+    REQUIRE(s.items[0][1] == Item::BOMB);
+    REQUIRE(s.bombs.count == 1);
+    s.Step(m);
+    if (print) {
+        s.Print();
+    }
+    REQUIRE(s.items[0][2] == Item::BOMB);
+    REQUIRE(s.bombs.count == 1);
+    s.Step(m);
+    if (print) {
+        s.Print();
+    }
+    REQUIRE(s.items[0][2] == Item::PASSAGE);
+    REQUIRE(s.bombs.count == 0);
+}
+
 TEST_CASE("Merge Observations", "[observation]")
 {
     bool print = false;
