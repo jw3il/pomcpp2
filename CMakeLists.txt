@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 
+project(pomcpp VERSION 2.0)
 set (CMAKE_CXX_STANDARD 17)
-project(pomcpp CXX)
 
 find_package(Threads REQUIRED)
 
@@ -10,20 +10,23 @@ IF(TEST_SHOW_GAME_PROGRESS)
     ADD_DEFINITIONS(-DTEST_SHOW_GAME_PROGRESS)
 ENDIF(TEST_SHOW_GAME_PROGRESS)
 
-# Download nlohmann json
-# from https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
-
 include(FetchContent)
 
-FetchContent_Declare(json
+FetchContent_Declare(
+  json
   GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
   GIT_TAG v3.9.1)
 
-FetchContent_GetProperties(json)
-if(NOT json_POPULATED)
-  FetchContent_Populate(json)
-  add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
+FetchContent_MakeAvailable(json)
+include_directories(${json_SOURCE_DIR}/include/)
+
+FetchContent_Declare(
+  Catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG        v2.13.7)
+
+FetchContent_MakeAvailable(Catch2)
+include_directories(${Catch2_SOURCE_DIR}/include/)
 
 # Main
 
@@ -66,4 +69,4 @@ file(GLOB test_files
 add_executable("${PROJECT_NAME}_test" ${test_files} ${source_files_nomain})
 target_include_directories("${PROJECT_NAME}_test" PUBLIC "unit_test/")
 target_link_libraries("${PROJECT_NAME}_test" Threads::Threads)
-target_link_libraries("${PROJECT_NAME}_test" nlohmann_json::nlohmann_json)
+target_link_libraries("${PROJECT_NAME}_test" nlohmann_json::nlohmann_json Catch2::Catch2)

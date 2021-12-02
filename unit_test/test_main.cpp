@@ -1,11 +1,12 @@
 #define CATCH_CONFIG_RUNNER
 
 #include <thread>
-
-#include "catch.hpp"
+#include <iostream>
+#include "catch2/catch.hpp"
+#include "test_args.hpp"
 
 bool THREADING;
-uint THREAD_COUNT;
+unsigned int THREAD_COUNT;
 
 int main( int argc, char* argv[] )
 {
@@ -29,7 +30,6 @@ int main( int argc, char* argv[] )
     int returnCode = session.applyCommandLine( argc, argv );
     if( returnCode != 0 ) // Indicates a command line error
         return returnCode;
-
 
     // if set on the command line then 'height' is now set at this point
     THREADING = THREAD_COUNT > 1;

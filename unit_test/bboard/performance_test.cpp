@@ -7,6 +7,7 @@
 
 #include "catch.hpp"
 #include "testing_utilities.hpp"
+#include "test_args.hpp"
 
 #include "bboard.hpp"
 #include "agents.hpp"
