@@ -221,10 +221,12 @@ void State::Step(Move* moves)
     // then update the bomb positions
 
     // resolve conflicting bomb destinations (and reset affected agents)
-    util::ResolveBombMovement(this, oldPos);
+    Position bombDestinations[bombs.count];
+    util::FillBombDestPos(this, bombDestinations);
+    util::ResolveBombMovement(this, oldPos, bombDestinations);
 
     // move the bombs (bombs can also explode if they move into flames)
-    util::MoveBombs(this);
+    util::MoveBombs(this, bombDestinations);
 
     // let bombs explode
     util::TickBombs(this);

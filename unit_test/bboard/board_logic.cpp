@@ -836,6 +836,27 @@ TEST_CASE("Bomb Kick Mechanics", "[step function]")
         s->Step(m);
         REQUIRE_AGENT(s.get(), 3, 6, 6);
     }
+    SECTION("Kicking moving bombs")
+    {
+        s->Kill(1, 2, 3);
+        s->agents[0].canKick = true;
+
+        // move down by 1
+        m[0] = bboard::Move::DOWN;
+        s->Step(m);
+        //    b
+        // 0  
+        // bomb moves down, agent moves right
+        Bomb &b = s->bombs[0];
+        SetBombDirection(b, Direction::DOWN);
+        m[0] = bboard::Move::RIGHT;
+        s->Step(m);
+        // expected:
+        //    
+        //    0  b
+        REQUIRE_AGENT(s.get(), 0, 1, 2);
+        REQUIRE(s->items[2][2] == Item::BOMB);
+    }
     for(bool b : {true, false})
     {
         SECTION("Undo Kick " + std::to_string(b))

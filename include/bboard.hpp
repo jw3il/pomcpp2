@@ -263,7 +263,36 @@ struct Position
 {
     int x;
     int y;
+
+    Position(): x(0), y(0) {}
+    Position(int x, int y): x(x), y(y) {}
 };
+
+inline Position operator+(const Position& a, const Position& b)
+{
+    return Position(a.x + b.x, a.y + b.y);
+}
+
+inline Position operator-(const Position& a, const Position& b)
+{
+    return Position(a.x - b.x, a.y - b.y);
+}
+
+inline bool operator==(const Position& a, const Position& b)
+{
+    return a.x == b.x && a.y == b.y;
+}
+
+inline bool operator!=(const Position& a, const Position& b)
+{
+    return a.x != b.x || a.y != b.y;
+}
+
+inline std::ostream & operator<<(std::ostream& str, const Position& p)
+{
+    str << "(" << p.x << ", " << p.y << ")";;
+    return str;
+}
 
 inline bool InViewRange(int x1, int y1, int x2, int y2, int range)
 {
@@ -278,22 +307,6 @@ inline bool InViewRange(const Position& p1, int x2, int y2, int range)
 inline bool InViewRange(const Position& p1, const Position& p2, int range)
 {
     return InViewRange(p1.x, p1.y, p2.x, p2.y, range);
-}
-
-inline bool operator==(const Position& here, const Position& other)
-{
-    return here.x == other.x && here.y == other.y;
-}
-
-inline bool operator!=(const Position& here, const Position& other)
-{
-    return here.x != other.x || here.y != other.y;
-}
-
-inline std::ostream & operator<<(std::ostream & str, const Position& v)
-{
-    str << "(" << v.x << ", " << v.y << ")";;
-    return str;
 }
 
 /**

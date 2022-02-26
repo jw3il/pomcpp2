@@ -34,7 +34,7 @@ Position DesiredPosition(const Bomb b);
  * we don't need to read the direction and find out if they've been alraedy moved
  * @return The position of the last agent/bomb that was bounced back in the chain.
  */
-Position AgentBombChainReversion(State* state, Position oldAgentPos[AGENT_COUNT],
+Position AgentBombChainReversion(State* state, const Position oldAgentPos[AGENT_COUNT],
                                  Position bombDest[MAX_BOMBS], int agentID);
 
 /**
@@ -74,7 +74,7 @@ inline void _printPositions(Position p[], int size)
 }
 
 template <bool useSkip>
-bool FixDestPos(Position o[], Position d[], bool collision[], const int size, bool skip[] = nullptr)
+bool FixDestPos(const Position o[], Position d[], bool collision[], const int size, bool skip[] = nullptr)
 {
     bool foundCollision = false;
     bool foundColInIteration;
@@ -119,7 +119,7 @@ bool FixDestPos(Position o[], Position d[], bool collision[], const int size, bo
 }
 
 template <bool useSkip>
-bool FixDestPos(Position o[], Position d[], const int size, bool skip[] = nullptr)
+bool FixDestPos(const Position o[], Position d[], const int size, bool skip[] = nullptr)
 {
     bool collision[size];
     std::fill_n(collision, size, false);
@@ -194,12 +194,12 @@ bool HasDPCollision(const State* state, Position dp[AGENT_COUNT], int agentID);
 void ResetBombFlags(Board* board);
 
 /**
- * @brief ResolveBombMovement Checks desired bomb positions and fixed collisions.
- * Handles agent dependencies and resets their moves if necessary.
+ * @brief ResolveBombMovement Checks for collisions between bomb destinations and handles bomb kicks. Resets agent moves if necessary.
  * @param state The state object
  * @param oldAgentPos The old agent positions
+ * @param bombDestinations The current bomb destinations (will be modified)
  */
-void ResolveBombMovement(State* state, Position oldAgentPos[AGENT_COUNT]);
+void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], Position bombDestinations[]);
 
 /**
  * @brief MoveAgent Execute move m for agent i (includes laying bombs).
@@ -217,8 +217,9 @@ void MoveAgent(State* state, const int i, const Move m, const Position fixedDest
  * @brief MoveBombs Moves the bombs (bombs explode when they hit flames).
  * Assumes that every bomb movement conflict is already resolved!
  * @param state The state object
+ * @param bombDestinations The bomb destinations
  */
-void MoveBombs(State* state);
+void MoveBombs(State* state, const Position bombDestinations[]);
 
 /**
  * @brief IsOutOfBounds Checks wether a given position is out of bounds
