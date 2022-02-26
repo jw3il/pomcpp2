@@ -381,10 +381,27 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
 
                 if(info.canKick && !util::BombMovementIsBlocked(state, newDestination)) 
                 {
-                    SetBombDirection(state->bombs[i], _toDirection(diff));
-                    bombDestinations[i] = newDestination;
-                    collisions[i] = false;
-                    continue;
+                    bool kickingAllowed = true;
+                    // kicking is not allowed if a moving bomb blocks the destination
+                    for(int j = 0; j < state->bombs.count; j++)
+                    {
+                        if(i == j) continue;
+
+                        if(bombDestinations[j] == newDestination)
+                        {
+                            kickingAllowed = false;
+                            break;
+                        }
+                    }
+
+                    if(kickingAllowed)
+                    {
+                        SetBombDirection(state->bombs[i], _toDirection(diff));
+                        bombDestinations[i] = newDestination;
+                        continue;
+                    }
+                    // note that this is treated as a collision if kicking is not allowed
+                    // to reset the agents position
                 }
             }
             foundCollision = true;

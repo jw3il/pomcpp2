@@ -773,6 +773,8 @@ TEST_CASE("Bomb Kick Mechanics", "[step function]")
         m[1] = Move::UP;
         PlantBomb(s.get(), 2, 2, 0, true);
         PlantBomb(s.get(), 0, 3, 0, true);
+        // bomb 1 only bounces back if bomb 0 has been kicked before (move dir already set)
+        bboard::SetBombDirection(s->bombs[0], bboard::Direction::RIGHT);
         bboard::SetBombDirection(s->bombs[1], bboard::Direction::UP);
         bboard::SetBombDirection(s->bombs[2], bboard::Direction::UP);
 
@@ -839,11 +841,11 @@ TEST_CASE("Bomb Kick Mechanics", "[step function]")
     SECTION("Kicking moving bombs")
     {
         s->Kill(1, 2, 3);
-        s->agents[0].canKick = true;
 
         // move down by 1
         m[0] = bboard::Move::DOWN;
         s->Step(m);
+        //
         //    b
         // 0  
         // bomb moves down, agent moves right
@@ -852,11 +854,30 @@ TEST_CASE("Bomb Kick Mechanics", "[step function]")
         m[0] = bboard::Move::RIGHT;
         s->Step(m);
         // expected:
+        //
         //    
         //    0  b
         REQUIRE_AGENT(s.get(), 0, 1, 2);
         REQUIRE(s->items[2][2] == Item::BOMB);
         s->agents[0].canKick = false;
+    }
+    SECTION("Moving bombs before freshly kicked")
+    {
+        s->Kill(1, 2, 3);
+        PlantBomb(s.get(), 3, 1, 0, true);
+        // 
+        // 0  b      b2
+        // bomb 2 moves left, agent moves right
+        Bomb &b = s->bombs[1];
+        SetBombDirection(b, Direction::LEFT);
+        m[0] = bboard::Move::RIGHT;
+        s->Step(m);
+        // expected:
+        // 
+        // 0  b  b2
+        REQUIRE(s->items[1][1] == Item::BOMB);
+        REQUIRE_AGENT(s.get(), 0, 0, 1);
+        REQUIRE(s->items[1][2] == Item::BOMB);
     }
     SECTION("Agent destination collision blocks moving bombs")
     {
