@@ -354,13 +354,15 @@ inline Direction _toDirection(Position difference)
     return Direction::IDLE;
 }
 
-void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], Position bombDestinations[])
+void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], const Position originalAgentDestination[AGENT_COUNT], Position bombDestinations[])
 {
     // Fill array of desired positions
     const int bombCount = state->bombs.count;
     Position bombPositions[bombCount];
     util::FillBombPositions(state, bombPositions);
+    
     bool collisions[bombCount];
+    std::fill_n(collisions, bombCount, false);
 
     bool foundCollision = false;
     // static movement blocks
@@ -389,12 +391,25 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
             collisions[i] = true;
             bombDestinations[i] = bombPositions[i];
         }
-        else
+        else if(bombDestination != bombPositions[i])
         {
-            collisions[i] = false;
+            // check that moving bomb does not overlap with agent collision
+            for(int a = 0; a < AGENT_COUNT; a++)
+            {
+                // agent wanted to move but somehow did not get there
+                // => bomb is not allowed to move either
+                if(originalAgentDestination[a] == bombDestination)
+                {
+                    foundCollision = true;
+                    collisions[i] = true;
+                    bombDestinations[i] = bombPositions[i];
+                    break;
+                }
+            }
         }
     }
 
+    // bomb-bomb collisions
     bool res = util::FixDestPos<false>(bombPositions, bombDestinations, collisions, state->bombs.count);
     foundCollision = foundCollision || res;
 

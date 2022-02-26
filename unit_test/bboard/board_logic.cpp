@@ -856,6 +856,34 @@ TEST_CASE("Bomb Kick Mechanics", "[step function]")
         //    0  b
         REQUIRE_AGENT(s.get(), 0, 1, 2);
         REQUIRE(s->items[2][2] == Item::BOMB);
+        s->agents[0].canKick = false;
+    }
+    SECTION("Agent destination collision blocks moving bombs")
+    {
+        s->Kill(2, 3);
+        s->PutAgent(1, 3, 1);
+        s->agents[0].canKick = false;
+        s->agents[1].canKick = false;
+
+        m[0] = bboard::Move::DOWN;
+        s->Step(m);
+        //    b
+        // 0  
+        //    1
+        // bomb moves down, agent 0 moves right and agent 1 moves up
+        Bomb &b = s->bombs[0];
+        SetBombDirection(b, Direction::DOWN);
+        m[0] = bboard::Move::RIGHT;
+        m[1] = bboard::Move::UP;
+        s->Step(m);
+        // expected:
+        //    b <- cannot move & stops moving
+        // 0 <- cannot move
+        //    1 <- cannot move
+        REQUIRE_AGENT(s.get(), 0, 0, 2);
+        REQUIRE_AGENT(s.get(), 1, 1, 3);
+        REQUIRE(s->items[1][1] == Item::BOMB);
+        REQUIRE(Direction(BMB_DIR(b)) == Direction::IDLE);
     }
     for(bool b : {true, false})
     {

@@ -197,9 +197,10 @@ void ResetBombFlags(Board* board);
  * @brief ResolveBombMovement Checks for collisions between bomb destinations and handles bomb kicks. Resets agent moves if necessary.
  * @param state The state object
  * @param oldAgentPos The old agent positions
+ * @param originalAgentDestination Original agent destinations (before collision handling)
  * @param bombDestinations The current bomb destinations (will be modified)
  */
-void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], Position bombDestinations[]);
+void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], const Position originalAgentDestination[AGENT_COUNT], Position bombDestinations[]);
 
 /**
  * @brief MoveAgent Execute move m for agent i (includes laying bombs).

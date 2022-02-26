@@ -175,14 +175,16 @@ void State::Step(Move* moves)
     // resolve collisions in player movement
 
     Position oldPos[AGENT_COUNT];
+    Position originalDestPos[AGENT_COUNT];
     Position destPos[AGENT_COUNT];
     bool dead[AGENT_COUNT];
 
     util::FillPositions(this, oldPos);
-    util::FillDestPos(this, moves, destPos);
+    util::FillDestPos(this, moves, originalDestPos);
+    std::copy_n(originalDestPos, AGENT_COUNT, destPos);
     util::FillAgentDead(this, dead);
 
-    util::FixDestPos<true>(oldPos, destPos, AGENT_COUNT, dead);
+    const bool agentMoveCollision = util::FixDestPos<true>(oldPos, destPos, AGENT_COUNT, dead);
 
     // calculate dependencies in the player movement
 
@@ -223,7 +225,7 @@ void State::Step(Move* moves)
     // resolve conflicting bomb destinations (and reset affected agents)
     Position bombDestinations[bombs.count];
     util::FillBombDestPos(this, bombDestinations);
-    util::ResolveBombMovement(this, oldPos, bombDestinations);
+    util::ResolveBombMovement(this, oldPos, originalDestPos, bombDestinations);
 
     // move the bombs (bombs can also explode if they move into flames)
     util::MoveBombs(this, bombDestinations);
