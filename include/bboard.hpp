@@ -581,7 +581,7 @@ public:
      * @brief HasAgent Returns the index of the agent that occupies
      * the given position. -1 if no agent is there
      */
-    int GetAgent(int x, int y);
+    int GetAgent(int x, int y) const;
 
     /**
      * @brief Places agents with given IDs clockwise in the corners of

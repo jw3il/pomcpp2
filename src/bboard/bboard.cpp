@@ -51,7 +51,7 @@ void Board::CopyFrom(const Board& board, bool copyAgents)
     }
 }
 
-int Board::GetAgent(int x, int y)
+int Board::GetAgent(int x, int y) const
 {
     for(int i = 0; i < AGENT_COUNT; i++)
     {

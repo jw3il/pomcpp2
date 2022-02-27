@@ -246,7 +246,7 @@ inline bool BombMovementIsBlocked(const Board* board, Position target)
 {
     return IsOutOfBounds(target)
             || IS_STATIC_MOV_BLOCK(board->items[target.y][target.x])
-            || IS_AGENT(board->items[target.y][target.x]);
+            || board->GetAgent(target.x, target.y) != -1;
 }
 
 /**

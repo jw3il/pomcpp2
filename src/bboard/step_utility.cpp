@@ -75,7 +75,6 @@ Position AgentBombChainReversion(State* state, const Position oldAgentPos[AGENT_
     // reset agent to its original position
     agent.x = origin.x;
     agent.y = origin.y;
-    state->items[origin.y][origin.x] = Item::AGENT0 + agentID;
 
     int bombDestIndex = -1;
     if(indexOriginAgent != -1)
@@ -361,64 +360,92 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
     Position bombPositions[bombCount];
     util::FillBombPositions(state, bombPositions);
     
-    bool collisions[bombCount];
-    std::fill_n(collisions, bombCount, false);
+    bool stoppingBombs[bombCount];
+    std::fill_n(stoppingBombs, bombCount, false);
+    bool foundStoppingBomb = false;
 
-    bool foundCollision = false;
-    // static movement blocks
+    bool agentCollisions[AGENT_COUNT];
+    std::fill_n(agentCollisions, AGENT_COUNT, false);
+    bool foundAgentCollision = false;
+
+    // agent-bomb collisions
     for(int i = 0; i < state->bombs.count; i++)
     {
         const Position& bombDestination = bombDestinations[i];
         if(util::BombMovementIsBlocked(state, bombDestination))
         {
             // bombs can be kicked
-            if(IS_AGENT(state->items[bombDestination.y][bombDestination.x]))
+            int agentid = state->GetAgent(bombDestination.x, bombDestination.y);
+            if(agentid != -1)
             {
-                int agentid = state->GetAgent(bombDestination.x, bombDestination.y);
                 const AgentInfo &info = state->agents[agentid];
-                const Position diff = info.GetPos() - oldAgentPos[agentid];
-                const Position newDestination = info.GetPos() + diff;
 
-                if(info.canKick && !util::BombMovementIsBlocked(state, newDestination)) 
+                if(info.canKick) 
                 {
-                    bool kickingAllowed = true;
-                    // kicking is not allowed if a moving bomb blocks the destination
-                    for(int j = 0; j < state->bombs.count; j++)
+                    const Position diff = info.GetPos() - oldAgentPos[agentid];
+                    const Position newDestination = info.GetPos() + diff;
+                    if(util::BombMovementIsBlocked(state, newDestination))
                     {
-                        if(i == j) continue;
-
-                        if(bombDestinations[j] == newDestination)
+                        // we cannot kick the bomb
+                        // .. we have to check if we have to bounce back an agent at the kick destination
+                        int indexAgent = state->GetAgent(newDestination.x, newDestination.y);
+                        if(indexAgent > -1 && state->agents[indexAgent].GetPos() != oldAgentPos[indexAgent])
                         {
-                            kickingAllowed = false;
-                            break;
+                            agentCollisions[indexAgent] = true;
+                            foundAgentCollision = true;
                         }
+                        // and also bounce back the agent at the original destination
+                        agentCollisions[agentid] = true;
+                        foundAgentCollision = true;
                     }
-
-                    if(kickingAllowed)
+                    else 
                     {
-                        SetBombDirection(state->bombs[i], _toDirection(diff));
-                        bombDestinations[i] = newDestination;
-                        continue;
+                        bool kickingAllowed = true;
+                        // kicking is not allowed if a moving bomb blocks the destination
+                        for(int j = 0; j < state->bombs.count; j++)
+                        {
+                            if(i == j) continue;
+
+                            if(bombDestinations[j] == newDestination)
+                            {
+                                kickingAllowed = false;
+                                break;
+                            }
+                        }
+
+                        if(kickingAllowed)
+                        {
+                            SetBombDirection(state->bombs[i], _toDirection(diff));
+                            bombDestinations[i] = newDestination;
+                            continue;
+                        }
+                        // note that this is treated as a collision if kicking is not allowed
+                        // to reset the agents position
                     }
-                    // note that this is treated as a collision if kicking is not allowed
-                    // to reset the agents position
+                }
+                else
+                {
+                    // agent at destination cannot kick and collides with the bomb => undo movement
+                    agentCollisions[agentid] = true;
+                    foundAgentCollision = true;
                 }
             }
-            foundCollision = true;
-            collisions[i] = true;
+            foundStoppingBomb = true;
+            stoppingBombs[i] = true;
             bombDestinations[i] = bombPositions[i];
         }
+        // else: bomb movement is not blocked
         else if(bombDestination != bombPositions[i])
         {
             // check that moving bomb does not overlap with agent collision
             for(int a = 0; a < AGENT_COUNT; a++)
             {
-                // agent wanted to move but somehow did not get there
+                // agent wanted to move but somehow did not get there (otherwise bomb movement would have been blocked)
                 // => bomb is not allowed to move either
                 if(originalAgentDestination[a] == bombDestination)
                 {
-                    foundCollision = true;
-                    collisions[i] = true;
+                    foundStoppingBomb = true;
+                    stoppingBombs[i] = true;
                     bombDestinations[i] = bombPositions[i];
                     break;
                 }
@@ -427,14 +454,27 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
     }
 
     // bomb-bomb collisions
-    bool res = util::FixDestPos<false>(bombPositions, bombDestinations, collisions, state->bombs.count);
-    foundCollision = foundCollision || res;
+    bool res = util::FixDestPos<false>(bombPositions, bombDestinations, stoppingBombs, state->bombs.count);
+    foundStoppingBomb = foundStoppingBomb || res;
 
-    if(foundCollision)
+    if(foundAgentCollision)
+    {
+        for(int i = 0; i < AGENT_COUNT; i++)
+        {
+            Position p = state->agents[i].GetPos();
+            // only revert agents that moved
+            if(agentCollisions[i] && oldAgentPos[i] != p)
+            {
+                util::AgentBombChainReversion(state, oldAgentPos, bombDestinations, i);
+            }
+        }
+    }
+
+    if(foundStoppingBomb)
     {
         for(int i = 0; i < state->bombs.count; i++)
         {
-            if(!collisions[i])
+            if(!stoppingBombs[i])
                 continue;
 
             // bombs with collisions should not move
@@ -476,9 +516,8 @@ inline void _resetBoardAgentGone(Board* board, const int x, const int y, const i
     }
 }
 
-inline void _setAgent(State* state, const int x, const int y, const int i)
+inline void _setAgentPos(State* state, const int x, const int y, const int i)
 {
-    state->items[y][x] = Item::AGENT0 + i;
     state->agents[i].x = x;
     state->agents[i].y = y;
 }
@@ -486,6 +525,10 @@ inline void _setAgent(State* state, const int x, const int y, const int i)
 void MoveAgent(State* state, const int i, const Move m, const Position fixedDest, const bool ouroboros)
 {
     AgentInfo& a = state->agents[i];
+
+    // hide agent from board and assume he does not move
+    _resetBoardAgentGone(state, a.x, a.y, i);
+    _setAgentPos(state, a.x, a.y, i);
 
     if(a.dead || !a.visible)
     {
@@ -499,72 +542,28 @@ void MoveAgent(State* state, const int i, const Move m, const Position fixedDest
     else if(m == Move::IDLE || fixedDest == a.GetPos())
     {
         // important: has to be after m == bomb because we won't move when
-        // we place a bomb
         return;
     }
 
     // the agent wants to move
-
-    if(util::IsOutOfBounds(fixedDest))
-    {
-        // cannot walk out of bounds
-        return;
-    }
-
     int itemOnDestination = state->items[fixedDest.y][fixedDest.x];
-
-    // if ouroboros, ignore agents at the destination
-    if(ouroboros)
+    if(util::IsOutOfBounds(fixedDest) || IS_WOOD(itemOnDestination) || itemOnDestination == Item::RIGID)
     {
-        // apart from the agent, the destination
-        // cell could also hold a bomb
-        if(state->HasBomb(fixedDest.x, fixedDest.y))
-        {
-            itemOnDestination = Item::BOMB;
-        }
-        else
-        {
-            // treat destination as if there was no agent
-            itemOnDestination = Item::PASSAGE;
-        }
+        // cannot walk out of bounds, on wooden and rigid boxes
+        return;
     }
-
-    //
-    // All checks passed - you can try a move now
-    //
-
-    // move into flame
-    if(IS_FLAME(itemOnDestination))
+    if(!ouroboros && state->GetAgent(fixedDest.x, fixedDest.y) != -1)
     {
-        state->Kill(i);
-        _resetBoardAgentGone(state, a.x, a.y, i);
+        // cannot walk on agents that collided with something (chain order)
         return;
     }
 
-    // collect power-ups (and continue walking)
-    if(IS_POWERUP(itemOnDestination))
-    {
-        util::ConsumePowerup(state->agents[i], itemOnDestination);
-        itemOnDestination = Item::PASSAGE;
-    }
-
-    // execute move if the destination is free
-    if(itemOnDestination == Item::PASSAGE)
-    {
-        // only override the position I came from if it has not been
-        // overridden by a different agent that already took this spot
-        _resetBoardAgentGone(state, a.x, a.y, i);
-        _setAgent(state, fixedDest.x, fixedDest.y, i);
-        return;
-    }
-    // handle bombs
-    if(itemOnDestination == Item::BOMB)
-    {
-        // allow stepping on bombs because they could move in the next step
-        // we'll check bomb movement later and undo this step if necessary
-        _resetBoardAgentGone(state, a.x, a.y, i);
-        _setAgent(state, fixedDest.x, fixedDest.y, i);
-    }
+    //int itemOnDestination = state->items[fixedDest.y][fixedDest.x];
+    //if(itemOnDestination == Item::PASSAGE || IS_FLAME(itemOnDestination) || IS_POWERUP(itemOnDestination) || state->HasBomb(fixedDest.x, fixedDest.y) || ouroboros)
+    //{
+    // only allow moving when possible, bomb collisions are resolved later
+    _setAgentPos(state, fixedDest.x, fixedDest.y, i);
+    //}
 }
 
 void MoveBombs(State* state, const Position bombDestinations[])

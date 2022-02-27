@@ -152,6 +152,40 @@ TEST_CASE("Movement Against Flames", "[step function]")
     REQUIRE(s->items[0][0] == bboard::Item::PASSAGE);
 }
 
+TEST_CASE("Movement Against Powerup", "[step function]")
+{
+    auto s = std::make_unique<bboard::State>();
+    bboard::Move id = bboard::Move::IDLE;
+    bboard::Move m[4] = {bboard::Move::RIGHT, id, id, id};
+
+    s->PutAgentsInCorners(0, 1, 2, 3, 0);
+    
+    SECTION("INCRRANGE")
+    {
+        s->items[0][1] = Item::INCRRANGE;
+        int rangeBefore = s->agents[0].bombStrength;
+        s->Step(m);
+        REQUIRE(s->items[0][1] == bboard::AGENT0);
+        REQUIRE(s->agents[0].bombStrength == rangeBefore + 1);
+    }
+    SECTION("KICK")
+    {
+        s->items[0][1] = Item::KICK;
+        s->agents[0].canKick = false;
+        s->Step(m);
+        REQUIRE(s->items[0][1] == bboard::AGENT0);
+        REQUIRE(s->agents[0].canKick);
+    }
+    SECTION("EXTRABOMB")
+    {
+        s->items[0][1] = Item::EXTRABOMB;
+        int bombsBefore = s->agents[0].maxBombCount;
+        s->Step(m);
+        REQUIRE(s->items[0][1] == bboard::AGENT0);
+        REQUIRE(s->agents[0].maxBombCount == bombsBefore + 1);
+    }
+}
+
 TEST_CASE("Destination Collision", "[step function]")
 {
     auto sx = std::make_unique<bboard::State>();
@@ -163,10 +197,9 @@ TEST_CASE("Destination Collision", "[step function]")
     s->PutAgent(0, 1, 0);
     s->PutAgent(2, 1, 1);
 
-    s->Kill(2, 3);
-
     SECTION("Two Agent-Collision")
     {
+        s->Kill(2, 3);
         m[0] = bboard::Move::RIGHT;
         m[1] = bboard::Move::LEFT;
 
@@ -177,9 +210,9 @@ TEST_CASE("Destination Collision", "[step function]")
     }
     SECTION("Dead Collision")
     {
+        s->Kill(1, 2, 3);
         m[0] = bboard::Move::RIGHT;
         m[1] = bboard::Move::LEFT;
-        s->Kill(1);
 
         s->Step(m);
 
@@ -859,6 +892,7 @@ TEST_CASE("Bomb Kick Mechanics", "[step function]")
         //    0  b
         REQUIRE_AGENT(s.get(), 0, 1, 2);
         REQUIRE(s->items[2][2] == Item::BOMB);
+        REQUIRE(Direction(BMB_DIR(b)) == Direction::RIGHT);
         s->agents[0].canKick = false;
     }
     SECTION("Moving bombs before freshly kicked")
@@ -878,6 +912,136 @@ TEST_CASE("Bomb Kick Mechanics", "[step function]")
         REQUIRE(s->items[1][1] == Item::BOMB);
         REQUIRE_AGENT(s.get(), 0, 0, 1);
         REQUIRE(s->items[1][2] == Item::BOMB);
+    }
+    /*
+    TODO: Check whether this is true. Contradicts test case "Bomb kicking blocks movement"
+    SECTION("Moving agents before freshly kicked")
+    {
+        s->Kill(2, 3);
+        s->PutAgent(3, 1, 1);
+        // 
+        // 0  b      1
+        m[0] = bboard::Move::RIGHT;
+        m[0] = bboard::Move::LEFT;
+        s->Print();
+        s->Step(m);
+        s->Print();
+        // expected:
+        // 
+        // 0  b  1
+        REQUIRE(s->items[1][1] == Item::BOMB);
+        REQUIRE_AGENT(s.get(), 0, 0, 1);
+        REQUIRE_AGENT(s.get(), 1, 2, 1);
+    }
+    */
+    SECTION("Bomb kicking blocks movement")
+    {
+        s->Kill(2, 3);
+        s->PutAgent(3, 1, 1);
+        s->PutBomb(2, 2, 1, 1, 0, true);
+        s->ExplodeBombAt(1);
+        m[0] = bboard::Move::IDLE;
+        s->Step(m);
+        // 
+        // 0  b  F  1
+        //    F  F  F
+        //       F
+        m[0] = bboard::Move::RIGHT;
+        m[1] = bboard::Move::LEFT;
+        s->Step(m);
+        // expected:
+        // 
+        // 0  b  F  1
+        //    F  F  F
+        //       F
+        REQUIRE(s->items[1][1] == Item::BOMB);
+        REQUIRE_AGENT(s.get(), 0, 0, 1);
+        REQUIRE_AGENT(s.get(), 1, 3, 1);
+        REQUIRE(s->agents[0].dead == false);
+        REQUIRE(s->agents[1].dead == false);
+    }
+    SECTION("Legal bomb kick moving agent")
+    {
+        s->Kill(2, 3);
+        s->PutAgent(2, 1, 1);
+        // 
+        // 0  b  1
+        m[0] = bboard::Move::RIGHT;
+        m[1] = bboard::Move::DOWN;
+        s->Step(m);
+        // expected:
+        // 
+        //     0  b
+        //        1
+        REQUIRE(s->items[1][2] == Item::BOMB);
+        REQUIRE_AGENT(s.get(), 0, 1, 1);
+        REQUIRE_AGENT(s.get(), 1, 2, 2);
+    }
+    SECTION("Moving bomb blocks movement")
+    {
+        s->Kill(2, 3);
+        s->PutAgent(3, 1, 1);
+        Bomb &b = s->bombs[0];
+        SetBombDirection(b, Direction::RIGHT);
+        // 
+        // 0  b     1
+        m[0] = bboard::Move::IDLE;
+        m[1] = bboard::Move::LEFT;
+        s->Step(m);
+        // expected:
+        // 
+        // 0  b     1
+        REQUIRE(s->items[1][1] == Item::BOMB);
+        REQUIRE(Direction(BMB_DIR(b)) == Direction::IDLE);
+        REQUIRE_AGENT(s.get(), 0, 0, 1);
+        REQUIRE_AGENT(s.get(), 1, 3, 1);
+    }
+    SECTION("Kicked bomb blocks movement complex")
+    {
+        Bomb &b = s->bombs[0];
+        s->items[0][1] = Item::RIGID;
+        s->agents[0].canKick = true;
+        s->agents[1].canKick = true;
+        s->Kill(2, 3);
+        s->PutAgent(3, 1, 1);
+        //    X
+        // 0  b    1
+        //       
+        m[0] = bboard::Move::RIGHT;
+        m[1] = bboard::Move::RIGHT;
+        s->Step(m);
+        // expected:
+        //    X
+        //    0  b    1
+        //      
+        REQUIRE(s->items[1][2] == Item::BOMB);
+        REQUIRE(Direction(BMB_DIR(b)) == Direction::RIGHT);
+        REQUIRE_AGENT(s.get(), 0, 1, 1);
+        REQUIRE_AGENT(s.get(), 1, 4, 1);
+        
+        m[0] = bboard::Move::DOWN;
+        m[1] = bboard::Move::LEFT;
+        s->Step(m);
+        // expected:
+        //    X
+        //       b  1
+        //    0  
+        REQUIRE(s->items[1][2] == Item::BOMB);
+        REQUIRE(Direction(BMB_DIR(b)) == Direction::LEFT);
+        REQUIRE_AGENT(s.get(), 0, 1, 2);
+        REQUIRE_AGENT(s.get(), 1, 3, 1);
+
+        m[0] = bboard::Move::UP;
+        m[1] = bboard::Move::RIGHT;
+        s->Step(m);
+        // expected:
+        //    X
+        //       b    1
+        //    0  
+        REQUIRE(s->items[1][2] == Item::BOMB);
+        REQUIRE(Direction(BMB_DIR(b)) == Direction::IDLE);
+        REQUIRE_AGENT(s.get(), 0, 1, 2);
+        REQUIRE_AGENT(s.get(), 1, 4, 1);
     }
     SECTION("Agent destination collision blocks moving bombs")
     {

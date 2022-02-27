@@ -227,6 +227,32 @@ void State::Step(Move* moves)
     util::FillBombDestPos(this, bombDestinations);
     util::ResolveBombMovement(this, oldPos, originalDestPos, bombDestinations);
 
+    // apply agent movement
+    for(int i = 0; i < AGENT_COUNT; i++)
+    {
+        const AgentInfo& info = agents[i];
+
+        if(!info.visible || info.dead) continue;
+
+        Position pos = agents[i].GetPos();
+        int itemOnDestination = items[pos.y][pos.x];
+        
+        // agent moved into flame
+        if(IS_FLAME(itemOnDestination))
+        {
+            Kill(i);
+            continue;
+        }
+        // collect power-ups
+        else if(IS_POWERUP(itemOnDestination))
+        {
+            util::ConsumePowerup(agents[i], itemOnDestination);
+        }
+
+        // update new agent position
+        items[pos.y][pos.x] = Item::AGENT0 + i;
+    }
+
     // move the bombs (bombs can also explode if they move into flames)
     util::MoveBombs(this, bombDestinations);
 
