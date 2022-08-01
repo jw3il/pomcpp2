@@ -1,6 +1,7 @@
 import socketserver
 
 import pommerman
+from pommerman import utility
 from pommerman.constants import GameType
 from pommerman.envs.v0 import Pomme
 import time
@@ -39,7 +40,7 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
             state, reward, done, info = env.step(actions)
             step += 1
 
-            if verbose and step % 10 == 0:
+            if False and verbose and step % 10 == 0:
                 delta = time.time() - start
                 print('\r{:.2f} sec > Episode {} running.. step {}'.format(
                     delta, i_episode, step
@@ -77,6 +78,7 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
 def print_stats(env, results, steps, episodes):
     if env._game_type == GameType.FFA:
         ffa_print_stats(results, steps, episodes)
+        print("Opposite positions {}".format([x/sum(env.opposite_position_counter) for x in env.opposite_position_counter]))
     elif env._game_type == GameType.Team or env._game_type == GameType.TeamRadio:
         team_print_stats(results, steps, episodes)
 
@@ -106,6 +108,7 @@ def ffa_print_stats(results, steps, episodes):
 
     print("Evaluated {} episodes".format(episodes))
     print("Average steps: {}".format(steps[:episodes].mean()))
+    print("Median steps: {}".format(np.median(steps[:episodes])))
 
     total_won = np.sum(num_won)
     print("Wins: {} ({:.2f}%)".format(total_won, total_won / episodes * 100))

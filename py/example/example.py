@@ -3,7 +3,7 @@ import pommerman
 from pommerman.agents import DockerAgent, HttpAgent, SimpleAgent
 
 from pypomcpp import CppAgent, AutoCopy
-from util import evaluate, get_free_port
+from pypomcpp.util import evaluate, get_free_port
 
 
 def create_agent_list(setting: str, autolib: AutoCopy, verbose: bool = False):
