@@ -6,6 +6,7 @@ from pommerman.constants import GameType
 from pommerman.envs.v0 import Pomme
 import time
 import numpy as np
+from pypomcpp.util_plotting import EvalPlotter
 
 
 def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
@@ -26,9 +27,11 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
 
     start = time.time()
 
+    plotter = EvalPlotter(env)
     # Run the episodes just like OpenAI Gym
     for i_episode in range(episodes):
         state = env.reset()
+        plotter.step(state, i_episode)
         done = False
         reward = []
         info = {}
@@ -38,6 +41,7 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
                 env.render()
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
+            plotter.step(state, i_episode)
             step += 1
 
             if False and verbose and step % 10 == 0:
@@ -71,6 +75,15 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False):
         delta = time.time() - start
         print("Total time: {:.2f} sec".format(delta))
         print_stats(env, results, steps, episodes)
+
+
+    # plot histogram of visited states
+
+    plotter.plot_explored_positions(agent_ixs=[0])
+    plotter.plot_state_varieties(agent_ixs=[0], modes=["aggregated", "bars", "grid", "stacked", "timeseries"])
+    plotter.plot_placed_bombs([0])
+    plotter.plot_placed_bombs([0,1,2,3])
+
 
     return results
 
