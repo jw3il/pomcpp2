@@ -7,48 +7,75 @@ import matplotlib.patches as mpatches
 import pommerman.constants as constants
 from pommerman.envs.v0 import Pomme
 from typing import List
+import os
 
 
 class EvalPlotter():
-    def __init__(self, env: Pomme) -> None:
+    def __init__(self, env: Pomme, n_episodes=None, experiment_path=None) -> None:
         self.env = env #get #agents, angent_names
         self.n_agents = len(self.env._agents)
         self.episodes = [[]] # list of episodes (a list of states)
         self.current_episode = 0
         self.visited_positions = None
         self.agent_colors = ['tab:blue', 'tab:orange', 'black', 'tab:red']
-        pass
+        self.agent_labels = [agent.agent_name.split("Agent")[0] + f" - id:{agent._character.agent_id}" for agent in self.env._agents]
+        if experiment_path is None:
+            self.experiment_path = self._default_dir(n_episodes)
+        else:
+            self.experiment_path = experiment_path
+
+        if not os.path.exists(self.experiment_path):
+            os.mkdir(self.experiment_path)
     
-    
-    def step(self, states, episode):
+    def _default_dir(self, n_episodes):
+        """ creates a default directory if no path was passed to the plotter
+
+        :param n_episodes: number of episodes (used for naming the folder)
+        :return: pathlike name of the default directory for the results
+        """
+        suffix = f"_e_{n_episodes}" if n_episodes is not None else "" 
+        experiment_name = f"{type(self.env).__name__}{suffix}"
+        if not os.path.exists("./eval_plotting"):
+            os.mkdir("./eval_plotting")
+        i = 0
+        while os.path.exists(f"./eval_plotting/{experiment_name}_{i}"):
+            i += 1
+
+        eval_dir=f"./eval_plotting/{experiment_name}_{i}"
+        
+        return eval_dir
+
+    def step(self, state, episode):
         if episode != self.current_episode:
             self.episodes.append([])
             self.current_episode = episode
-        self.episodes[-1].append(states)
+        self.episodes[-1].append(state)
 
     def _agent_alive(self, agent_state):
         return len(agent_state["alive"]) - len(set(agent_state["alive"]) & set([en.value for en in agent_state["enemies"]]))
 
-    def plot_collected_powerups(self, agent_ixs, individual_plots=False):
+    def _plot_attribute(self, agent_ixs, get_attribute, y_label, fig_name, individual_plots=False, plot_agents_alive=False):
         # agent labels
-        labels = [self.env._agents[i].agent_name.split("Agent")[0] + f" - id:{self.env._agents[i]._character.agent_id}" for i in agent_ixs]
+        labels = [self.agent_labels[i] for i in agent_ixs]
         #individual plots
         if individual_plots:
                 ifig, iaxs = plt.subplots(1, len(agent_ixs), sharex=True, sharey=True, figsize=(16,4))
 
         # aggregated plot
         fig, ax1 = plt.subplots(sharex=True, sharey=True)
-        ax2 = ax1.twinx()
+        if plot_agents_alive:
+            ax2 = ax1.twinx()
+            ax2.set_ylabel("Agents alive")
         for agent_ix in agent_ixs:
             positions = self._visited_positions()[agent_ix]
-            placed_bombs = []
+            episodes = []
             for e_nr, episode in enumerate(self.episodes):
-                placed_bombs_episode = self._collected_item_episode(positions[e_nr], episode, agent_ix)
-                placed_bombs.append(placed_bombs_episode)
+                episode = get_attribute(positions[e_nr], episode, agent_ix)
+                episodes.append(episode)
             
             #individual plots
             if individual_plots:
-                for i, e in enumerate(placed_bombs):
+                for i, e in enumerate(episodes):
                     if len(agent_ixs)>1:
                         iaxs[agent_ix].plot(e, label=f"episode {i}")
                         iaxs[agent_ix].title.set_text(labels[agent_ix])
@@ -56,162 +83,161 @@ class EvalPlotter():
                         iaxs.plot(e, label=f"episode {i}")
 
             # aggregated plot
-            means, n_alive = _aggregate_timeseries(placed_bombs)
-            ax1.plot(means, label="Powerups_collected", color=self.agent_colors[agent_ix])
-            ax2.plot(n_alive, label="# agents alive", color=self.agent_colors[agent_ix], linestyle="dashed")
+            means, n_alive = _aggregate_timeseries(episodes)
+            ax1.plot(means, label=y_label, color=self.agent_colors[agent_ix])
+            if plot_agents_alive:
+                ax2.plot(n_alive, label="# agents alive", color=self.agent_colors[agent_ix], linestyle="dashed")
         
-        ax1.set_ylabel("Powerups_collected")
-        ax2.set_ylabel("Agents alive")
+        ax1.set_ylabel(y_label)
         ax1.set_xlabel("Steps")
         patches = [mpatches.Patch(color=self.agent_colors[ix], label=labels[ix]) for ix in agent_ixs]
-        ax1.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -.2), fancybox=True, shadow=True, ncol=len(agent_ixs))
+        ax1.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -.15), fancybox=True, shadow=True, ncol=len(agent_ixs))
         fig.tight_layout()
-        fig.savefig(f"collected_powerups_aggregated", bbox_inches="tight")
+        fig.savefig(os.path.join(self.experiment_path, f"{fig_name}_aggregated"), bbox_inches="tight")
 
         if individual_plots:
-            ifig.savefig(f"collected_powerups_individual", bbox_inches="tight")
+            if len(agent_ixs)>1:
+                ax = iaxs[agent_ixs[0]]
+            else:
+                ax = iaxs
+            fig.text(0.5, 0.04, 'Steps', ha='center')
+            ax.set_ylabel(y_label)
+            ifig.savefig(os.path.join(self.experiment_path, f"{fig_name}_individual"), bbox_inches="tight")
 
+    def plot_kicks(self, agent_ixs, individual_plots=False, plot_agents_alive=False):
+        """Creates a plot showing the number of kicks for each agent
 
-    def _collected_item_episode(self, positions, episode, agent_ix):
-        collected_items = [0]
-        for (state, position) in zip(episode[:len(positions)+1], positions[1:]):
-            collected = state[agent_ix]["board"][position] in [constants.Item.ExtraBomb.value, constants.Item.IncrRange.value, constants.Item.Kick.value]
-            collected_items.append(collected_items[-1] + collected)
-        return collected_items
+        def _kicks_episode(positions, episode, agent_ix):
+            kicks = [0]
+            for (previous_state, current_position) in zip(episode[:len(positions)+1], positions[1:]):
+                # The edge case where agent kicks a bomb which is moving towards him is ignored
+                bomb_at_dest = previous_state[agent_ix]["bomb_life"][current_position]>0 and previous_state[agent_ix]["bomb_moving_direction"][current_position]==0
+                moved = previous_state[agent_ix]["position"] != current_position
+                kick = bomb_at_dest and moved and previous_state[agent_ix]["can_kick"]
+                kicks.append(kicks[-1] + kick)
+            return kicks
+        self._plot_attribute(agent_ixs, get_attribute=_kicks_episode, y_label="kicks", fig_name="kicks", individual_plots=individual_plots, plot_agents_alive=plot_agents_alive)
+      
+    def plot_collected_powerups(self, agent_ixs, individual_plots=False, plot_agents_alive=False):
+        """Creates a plot showing the number of collected powerups for each agent
 
-    def plot_placed_bombs(self, agent_ixs, individual_plots=False):
-        # agent labels
-        labels = [self.env._agents[i].agent_name.split("Agent")[0] + f" - id:{self.env._agents[i]._character.agent_id}" for i in agent_ixs]
-        #individual plots
-        if individual_plots:
-                ifig, iaxs = plt.subplots(1, len(agent_ixs), sharex=True, sharey=True, figsize=(16,4))
+        :param agent_ixs: indicies of the agents that should be plotted
+        :param individual_plots: create additional plots for each individual agent, defaults to False
+        :param plot_agents_alive: add a dashed line showing how many agents where alive/used for the aggregated result, defaults to False
+        """
+        def _collected_item_episode(positions, episode, agent_ix):
+            collected_items = [0]
+            for (state, next_position) in zip(episode[:len(positions)+1], positions[1:]):
+                collected = state[agent_ix]["board"][next_position] in [constants.Item.ExtraBomb.value, constants.Item.IncrRange.value, constants.Item.Kick.value]
+                collected_items.append(collected_items[-1] + collected)
+            return collected_items
 
-        # aggregated plot
-        fig, ax1 = plt.subplots(sharex=True, sharey=True)
-        ax2 = ax1.twinx()
-        for agent_ix in agent_ixs:
-            positions = self._visited_positions()[agent_ix]
-            placed_bombs = []
-            for e_nr, episode in enumerate(self.episodes):
-                placed_bombs_episode = self._placed_bomb_episode(positions[e_nr], episode, agent_ix)
-                placed_bombs.append(placed_bombs_episode)
-            
-            #individual plots
-            if individual_plots:
-                for i, e in enumerate(placed_bombs):
-                    if len(agent_ixs)>1:
-                        iaxs[agent_ix].plot(e, label=f"episode {i}")
-                        iaxs[agent_ix].title.set_text(labels[agent_ix])
-                    else:
-                        iaxs.plot(e, label=f"episode {i}")
+        self._plot_attribute(agent_ixs, get_attribute=_collected_item_episode, y_label="powerups collected", fig_name="collected_powerups", individual_plots=individual_plots, plot_agents_alive=plot_agents_alive)
 
-            # aggregated plot
-            means, n_alive = _aggregate_timeseries(placed_bombs)
-            ax1.plot(means, label="Bombs placed", color=self.agent_colors[agent_ix])
-            ax2.plot(n_alive, label="# agents alive", color=self.agent_colors[agent_ix], linestyle="dashed")
-        
-        ax1.set_ylabel("Bombs placed")
-        ax2.set_ylabel("Agents alive")
-        ax1.set_xlabel("Steps")
-        patches = [mpatches.Patch(color=self.agent_colors[ix], label=labels[ix]) for ix in agent_ixs]
-        ax1.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -.2), fancybox=True, shadow=True, ncol=len(agent_ixs))
-        fig.tight_layout()
-        fig.savefig(f"placed_bombs_aggregated", bbox_inches="tight")
+    def plot_placed_bombs(self, agent_ixs, individual_plots=False, plot_agents_alive=False):
 
-        if individual_plots:
-            ifig.savefig(f"placed_bombs_individual", bbox_inches="tight")
+        """
+        def _placed_bomb_episode(positions, episode, agent_ix):
+            placed_bombs = [0]
+            for (state, previous_position) in zip(episode[1:len(positions)], positions[:-1]):
+                placed_bomb = state[agent_ix]["bomb_life"][previous_position]==9
+                placed_bombs.append(placed_bombs[-1] + placed_bomb)
+            return placed_bombs
 
-    def _placed_bomb_episode(self, positions, episode, agent_ix):
-        placed_bombs = [0]
-        for (state, previous_position) in zip(episode[1:len(positions)], positions[:-1]):
-            placed_bomb = state[agent_ix]["bomb_life"][previous_position]==9
-            placed_bombs.append(placed_bombs[-1] + placed_bomb)
-        return placed_bombs
-
-    def _get_visited_positions(self):
-        visited_positions = [[] for _ in range(self.n_agents)] 
-        for episode in self.episodes:
-            visited = [[] for _ in range(self.n_agents)] 
-            for states in episode: 
-                for ix, state in enumerate(states):
-                    if self._agent_alive(state):
-                        visited[ix].append(state["position"])
-            for agent_ix in range(self.n_agents):
-                visited_positions[agent_ix].append(visited[agent_ix])
-        return visited_positions
+        self._plot_attribute(agent_ixs, get_attribute=_placed_bomb_episode, y_label="bombs placed", fig_name="placed_bombs", individual_plots=individual_plots, plot_agents_alive=plot_agents_alive)
 
     def _visited_positions(self):
+        """
+        returns a 3 dimensional list of visited positions for the agents with the following structure:
+        visited_positions[agent][episode][step]
+        """
+        def _get_visited_positions():
+            visited_positions = [[] for _ in range(self.n_agents)] 
+            for episode in self.episodes:
+                visited = [[] for _ in range(self.n_agents)] 
+                for states in episode: 
+                    for ix, state in enumerate(states):
+                        if self._agent_alive(state):
+                            visited[ix].append(state["position"])
+                for agent_ix in range(self.n_agents):
+                    visited_positions[agent_ix].append(visited[agent_ix])
+            return visited_positions
+
         if self.visited_positions is None:
-            self.visited_positions = self._get_visited_positions()
+            self.visited_positions = _get_visited_positions()
         return self.visited_positions
 
-
-    def plot_explored_positions(self, agent_ixs=None):
+    def plot_explored_positions_per_agent(self, agent_ixs):
         if agent_ixs is None:
             agent_ixs = list(range(self.n_agents))
-
-        vp = self._visited_positions()
-
         # plot single episodes
         fig, ax = plt.subplots()
         for agent_ix in agent_ixs:
-            visited_positions = vp[agent_ix]
+            visited_positions = self._visited_positions()[agent_ix]
             unique_ixs = [np.sort(np.unique(positions, return_index=True, axis=0)[1]) for positions in visited_positions]
             unique_states = [list(range(1,len(ixs)+1)) for ixs in unique_ixs]
 
-            for i, (x,y) in enumerate(zip(unique_ixs, unique_states)):
+            for (x,y) in zip(unique_ixs, unique_states):
                 ax.plot(x,y, color=self.agent_colors[agent_ix])
         
-        labels = [self.env._agents[i].agent_name.split("Agent")[0] + f" - id:{self.env._agents[i]._character.agent_id}" for i in agent_ixs]
+        labels = [self.agent_labels[i] for i in agent_ixs]
         patches = [mpatches.Patch(color=self.agent_colors[ix], label=labels[ix]) for ix in agent_ixs]
-        ax.legend(handles=patches)
+        ax.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -.15), fancybox=True, shadow=True, ncol=len(agent_ixs))
         ax.set_ylabel('unique states visited')
-        ax.set_xlabel(f"steps")
+        ax.set_xlabel('steps')
 
-        fig.savefig(f"visited unique positions", bbox_inches="tight")
+        fig.savefig(os.path.join(self.experiment_path,"visited unique positions"), bbox_inches="tight")
         plt.clf()
 
-        # plot aggregated
+    def plot_explored_positions(self, agent_ixs=None, plot_agents_alive=True):
+        if agent_ixs is None:
+            agent_ixs = list(range(self.n_agents))
+
         fig, ax1 = plt.subplots(constrained_layout=True)
-        ax2 = ax1.twinx()
+        if plot_agents_alive:
+            ax2 = ax1.twinx()
+            ax2.set_ylabel('agents alive')
+
+        labels = [self.agent_labels[i] for i in agent_ixs]
+        patches = [mpatches.Patch(color=self.agent_colors[ix], label=labels[ix]) for ix in agent_ixs]
 
         for agent_ix in agent_ixs:
-            visited_positions = vp[agent_ix]
-            #max_steps = max(len(positions) for positions in visited_positions)
-            us = []
+            # plot visited positions per agent
+            visited_positions = self._visited_positions()[agent_ix]
             unique_ixs = [np.sort(np.unique(positions, return_index=True, axis=0)[1]) for positions in visited_positions]
-
+            
+            unique_positions = [] 
             for i, ixs in enumerate(unique_ixs):
-                us.append([len(ixs[ixs<=ix]) for ix in range(0,len(visited_positions[i]))])
+                unique_positions.append([len(ixs[ixs<=ix]) for ix in range(0,len(visited_positions[i]))])
 
-            # ToDo: Rename variables
-            varieties = np.array(list(zip_longest(*us)),dtype=float)
-            means = np.nanmean(varieties, axis=1)
-            n_alive = len(visited_positions) - np.count_nonzero(np.isnan(varieties),axis=1)
+            means, n_alive = _aggregate_timeseries(unique_positions)
             
             ax1.plot(means, color=self.agent_colors[agent_ix], label="unique states" + labels[agent_ix])
-            ax2.plot(n_alive, color=self.agent_colors[agent_ix], linestyle='dashed', label="alive" + labels[agent_ix])
+            if plot_agents_alive:
+                ax2.plot(n_alive, color=self.agent_colors[agent_ix], linestyle='dashed', label="alive" + labels[agent_ix])
         
         ax1.set_ylabel('unique states visited')
-        ax2.set_ylabel('agents alive')
 
         if len(agent_ixs)>1:
-            ax1.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True)
+            ax1.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -.15), fancybox=True, shadow=True, ncol=len(agent_ixs))
 
         ax1.set_xlabel(f"steps")
-        fig.savefig(f"visited unique positions_aggregated", bbox_inches="tight")
+        fig.savefig(os.path.join(self.experiment_path,f"visited unique positions_aggregated"), bbox_inches="tight")
         plt.clf()
 
-    def plot_state_varieties(self, agent_ixs=None, max_variety=20, modes=None):
+    def plot_state_varieties(self, agent_ixs=None, max_variety=20, modes=None, plot_agents_alive=True):
         """_summary_
 
         :param agent_ixs: list of agent ids that should be included in the plot, defaults to all agents
         :param max_variety:  size of sliding window which is used to count unique visited states. defaults to 20
-        :param modes: list of modes for plot generation: "aggregated", "bars", "grid", "stacked", "timeseries", defaults to None
+        :param modes: list of modes for plot generation: "aggregated", "timeseries", "bars"(only good for small amount of episodes <=~5), defaults to None
         """
 
         if agent_ixs is None:
             agent_ixs = list(range(self.n_agents))
+
+        # structure state varieties in the following way:
+        # state_varieties[agent, episode, step]
         state_varieties = []
         for agent_ix in agent_ixs:
             agent_state_varieties = []
@@ -224,38 +250,38 @@ class EvalPlotter():
                 agent_state_varieties.append(svs)
             state_varieties.append(agent_state_varieties)
         
-        # state_varieties[agent, episode, step]
-        labels = [self.env._agents[i].agent_name.split("Agent")[0] + f" - id:{self.env._agents[i]._character.agent_id}" for i in agent_ixs]
+        # plotting
+        labels = [self.agent_labels[i] for i in agent_ixs]
         patches = [mpatches.Patch(color=self.agent_colors[ix], label=labels[ix]) for ix in agent_ixs]
         
         for mode in modes:
             if mode in ["timeseries"]: # stacked
                 _, ax = plt.subplots(sharex=True)
-                ax2 = ax.twinx()
+                if plot_agents_alive:
+                    ax2 = ax.twinx()
+                else:
+                    ax2=None
                 for a_ix in agent_ixs:
-                    self._plot_state_varieties((ax,ax2), state_varieties[a_ix], 20, mode=mode, color=self.agent_colors[a_ix])
+                    self._plot_state_varieties((ax,ax2), state_varieties[a_ix], 20, mode=mode, color=self.agent_colors[a_ix], plot_agents_alive=plot_agents_alive)
                 plt.xlabel(f"steps")
+                ax.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -.15), fancybox=True, shadow=True, ncol=len(agent_ixs))
             else:
-                if mode in ["grid"]: # horizontal
-                    _, axs = plt.subplots(1, len(agent_ixs), sharex=True, sharey=True)  
-                else: # vertical
-                    _, axs = plt.subplots(len(agent_ixs), sharex=True, sharey=True)
+                _, axs = plt.subplots(len(agent_ixs), sharex=True, sharey=True)
         
                 for a_ix in agent_ixs:
                     if type(axs)==np.ndarray or (axs.numCols*axs.numRows) > 1:
-                        self._plot_state_varieties(axs[a_ix], state_varieties[a_ix], 20, mode=mode, color=self.agent_colors[a_ix])
+                        self._plot_state_varieties(axs[a_ix], state_varieties[a_ix], 20, mode=mode, color=self.agent_colors[a_ix], plot_agents_alive=plot_agents_alive)
                         ax = axs[0]
                     else:
-                        self._plot_state_varieties(axs, state_varieties[a_ix], 20, mode=mode, color=self.agent_colors[a_ix])
                         ax = axs
+                        self._plot_state_varieties(ax, state_varieties[a_ix], 20, mode=mode, color=self.agent_colors[a_ix], plot_agents_alive=plot_agents_alive)
                 plt.xlabel(f"unique visited stated within {max_variety} moves")
-
-            ax.legend(handles=patches, loc='upper left', bbox_to_anchor=(1, 1.05), fancybox=True, shadow=True)
+                ax.legend(handles=patches, loc='upper left', bbox_to_anchor=(1, 1.05), fancybox=True, shadow=True)
             plt.tight_layout()
-            plt.savefig(f"state_variety_window{max_variety}_episodes{len(self.episodes)}_{mode}", bbox_inches="tight")
+            plt.savefig(os.path.join(self.experiment_path,f"state_variety_window{max_variety}_episodes{len(self.episodes)}_{mode}"), bbox_inches="tight")
             plt.clf()
 
-    def _plot_state_varieties(self, ax, state_varieties: List[List[int]], max_variety, mode=None, color="blue"):
+    def _plot_state_varieties(self, ax, state_varieties: List[List[int]], max_variety, plot_agents_alive, mode=None, color="blue"):
         """_summary_
 
         :param state_varieties: list of unique visted positions within a sliding window per episode
@@ -266,18 +292,8 @@ class EvalPlotter():
         if mode is None:
             mode = "aggregated"
 
-        episodes = len(state_varieties)
-        if mode == "grid":
-            plots_per_row = math.ceil(np.sqrt(episodes))
-            _, axs = plt.subplots(plots_per_row, plots_per_row, sharex=True, sharey=True)
-            for i, varieties in enumerate(state_varieties):
-                axs[i%plots_per_row, int(i/plots_per_row)].hist(varieties, bins=max_variety, range=(1, max_variety+1), align="left", density=False)
-            ax.set_xticks(np.arange(1, max_variety+1, 1))
-        elif mode == "bars":
+        if mode == "bars":
             ax.hist(np.array(state_varieties, dtype=object), bins=max_variety, range=(1, max_variety+1), align="left", histtype='step', fill=False)
-            ax.set_xticks(np.arange(1, max_variety+1, 1))
-        elif mode == "stacked":
-            ax.hist(np.array(state_varieties, dtype=object), bins=max_variety, range=(1, max_variety+1), align="left", histtype='barstacked')
             ax.set_xticks(np.arange(1, max_variety+1, 1))
         elif mode == "aggregated":
             ax.hist(np.concatenate(state_varieties), bins=max_variety, range=(1, max_variety+1), align="left", density=True, color=color)
@@ -286,9 +302,32 @@ class EvalPlotter():
             ax1, ax2 = ax
             means, n_alive = _aggregate_timeseries(state_varieties)
             ax1.plot(means, color=color, label="unique states")
-            ax2.plot(n_alive, color=color, linestyle='dashed', label="alive")
             ax1.set_ylabel('unique states', color='black')
-            ax2.set_ylabel('agents alive', color='black')
+
+            if plot_agents_alive:
+                ax2.plot(n_alive, color=color, linestyle='dashed', label="alive")
+                ax2.set_ylabel('agents alive', color='black')
+
+    def plot_agents_alive(self, agent_ixs):
+        # agent labels
+        labels = [self.agent_labels[i] for i in agent_ixs]
+
+        # aggregated plot
+        fig, ax1 = plt.subplots(sharex=True, sharey=True)
+        ax1.set_ylabel("Agents alive")
+        for agent_ix in agent_ixs:
+            episodes = self._visited_positions()[agent_ix]
+            survived_steps = np.sort(np.array([len(positions) for positions in episodes]))
+            survived_agents = [sum(survived_steps>0)] + [sum(survived_steps>s) for s in survived_steps]
+            x = [0]+survived_steps.tolist()        # aggregated plot
+            ax1.step(x, survived_agents, label="# agents alive", color=self.agent_colors[agent_ix], where='post', linestyle="dashed")
+        
+        ax1.set_ylabel("# agents alive")
+        ax1.set_xlabel("Steps")
+        patches = [mpatches.Patch(color=self.agent_colors[ix], label=labels[ix]) for ix in agent_ixs]
+        ax1.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -.15), fancybox=True, shadow=True, ncol=len(agent_ixs))
+        fig.tight_layout()
+        fig.savefig(os.path.join(self.experiment_path,"agents_alive"), bbox_inches="tight")
 
 def _aggregate_timeseries(to_aggregate):
     """ aggregate timeseries with various by taking the mean of all non nan values
