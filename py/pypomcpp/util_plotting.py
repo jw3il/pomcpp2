@@ -11,6 +11,12 @@ import os
 
 
 class EvalPlotter():
+    """
+    Plotter for the evaluation of a pommerman run.
+    At each evaluation step the state is passed to the plotter.
+    The plotter is able to create different plots based on the passed steps.
+    (see documentation of the plot_... functions)
+    """
     def __init__(self, env: Pomme, n_episodes=None, experiment_path=None) -> None:
         self.env = env #get #agents, angent_names
         self.n_agents = len(self.env._agents)
@@ -46,15 +52,34 @@ class EvalPlotter():
         return eval_dir
 
     def step(self, state, episode):
+        """function to pass the current state to the plotter during evaluation
+
+        :param state: current environment state
+        :param episode: current evaluation episode
+        """
         if episode != self.current_episode:
             self.episodes.append([])
             self.current_episode = episode
         self.episodes[-1].append(state)
 
     def _agent_alive(self, agent_state):
+        """
+
+        :param agent_state: state of an agent enf.state[agend_ix]
+        :return: wether the agent is alive at the passed state
+        """
         return len(agent_state["alive"]) - len(set(agent_state["alive"]) & set([en.value for en in agent_state["enemies"]]))
 
     def _plot_attribute(self, agent_ixs, get_attribute, y_label, fig_name, individual_plots=False, plot_agents_alive=False):
+        """_summary_
+
+        :param agent_ixs: indicies of the agents that should be plotted
+        :param get_attribute: function that gathers the desired attribute with input (positions[e_nr], episode, agent_ix) 
+        :param y_label: y-label of the plot
+        :param fig_name: plot name
+        :param individual_plots: create additional plots for each individual agent, defaults to False
+        :param plot_agents_alive: add a dashed line showing how many agents where alive/used for the aggregated result, defaults to False
+        """
         # agent labels
         labels = [self.agent_labels[i] for i in agent_ixs]
         #individual plots
@@ -107,6 +132,10 @@ class EvalPlotter():
     def plot_kicks(self, agent_ixs, individual_plots=False, plot_agents_alive=False):
         """Creates a plot showing the number of kicks for each agent
 
+        :param agent_ixs: indicies of the agents that should be plotted
+        :param individual_plots: create additional plots for each individual agent, defaults to False
+        :param plot_agents_alive: add a dashed line showing how many agents where alive/used for the aggregated result, defaults to False
+        """
         def _kicks_episode(positions, episode, agent_ix):
             kicks = [0]
             for (previous_state, current_position) in zip(episode[:len(positions)+1], positions[1:]):
@@ -135,7 +164,11 @@ class EvalPlotter():
         self._plot_attribute(agent_ixs, get_attribute=_collected_item_episode, y_label="powerups collected", fig_name="collected_powerups", individual_plots=individual_plots, plot_agents_alive=plot_agents_alive)
 
     def plot_placed_bombs(self, agent_ixs, individual_plots=False, plot_agents_alive=False):
+        """Creates a plot showing the number of placed bombs for each agent
 
+        :param agent_ixs: indicies of the agents that should be plotted
+        :param individual_plots: create additional plots for each individual agent, defaults to False
+        :param plot_agents_alive: add a dashed line showing how many agents where alive/used for the aggregated result, defaults to False
         """
         def _placed_bomb_episode(positions, episode, agent_ix):
             placed_bombs = [0]
