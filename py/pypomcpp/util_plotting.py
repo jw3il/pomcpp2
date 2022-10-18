@@ -201,6 +201,10 @@ class EvalPlotter():
         return self.visited_positions
 
     def plot_explored_positions_per_agent(self, agent_ixs):
+        """Creates a plot of the number of unique positions at each step per agent
+
+        :param agent_ixs: indicies of agents to be plotted
+        """
         if agent_ixs is None:
             agent_ixs = list(range(self.n_agents))
         # plot single episodes
@@ -223,6 +227,11 @@ class EvalPlotter():
         plt.clf()
 
     def plot_explored_positions(self, agent_ixs=None, plot_agents_alive=True):
+        """Creates an aggregated plot of "plot_explored_positions_per_agent" aggregating over the agent id
+
+        :param agent_ixs: indicies of agents to be plotted
+        :param plot_agents_alive: plot how many agents were alive (thereby accounted for during averaging), defaults to True
+        """
         if agent_ixs is None:
             agent_ixs = list(range(self.n_agents))
 
@@ -259,7 +268,7 @@ class EvalPlotter():
         plt.clf()
 
     def plot_state_varieties(self, agent_ixs=None, max_variety=20, modes=None, plot_agents_alive=True):
-        """_summary_
+        """Creates a plot displaying how many uniques states the agent has visited within the last x moves at each step
 
         :param agent_ixs: list of agent ids that should be included in the plot, defaults to all agents
         :param max_variety:  size of sliding window which is used to count unique visited states. defaults to 20
@@ -315,10 +324,10 @@ class EvalPlotter():
             plt.clf()
 
     def _plot_state_varieties(self, ax, state_varieties: List[List[int]], max_variety, plot_agents_alive, mode=None, color="blue"):
-        """_summary_
+        """helper functio for plot_state_varieties
 
         :param state_varieties: list of unique visted positions within a sliding window per episode
-        :param max_variety: _description_
+        :param max_variety: size of sliding window which is used to count unique visited states.
         :param mode: type of plot that should be generated. Possible options: "grid", "aggregated", "stacked", "
         """
         
@@ -342,6 +351,10 @@ class EvalPlotter():
                 ax2.set_ylabel('agents alive', color='black')
 
     def plot_agents_alive(self, agent_ixs):
+        """Plot number of agents alive per id over all episodes
+
+        :param agent_ixs: list of agent ids that should be included in the plot
+        """
         # agent labels
         labels = [self.agent_labels[i] for i in agent_ixs]
 
