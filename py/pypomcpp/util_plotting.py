@@ -4,11 +4,22 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from pommerman.agents.docker_agent import DockerAgent
 import pommerman.constants as constants
 from pommerman.envs.v0 import Pomme
 from typing import List
 import os
+from pypomcpp.cppagent import CppAgent
 
+
+def _agent_name(agent):
+    if isinstance(agent, CppAgent):
+        name = f"cpp_{agent.agent_name.split('Agent')[0]}"
+    elif isinstance(agent, DockerAgent):
+        name = agent.docker_image
+    else:
+        name = type(agent).__name__
+    return name
 
 class EvalPlotter():
     """
@@ -18,13 +29,19 @@ class EvalPlotter():
     (see documentation of the plot_... functions)
     """
     def __init__(self, env: Pomme, n_episodes=None, experiment_path=None) -> None:
+        """_summary_
+
+        :param env: Pommerman environment used for evaluation loop
+        :param n_episodes: number of evaluation episodes (used for naming), defaults to None
+        :param experiment_path: path to expiriment folder, if not set plots are saved under ./eval_plotting/"experiment name"
+        """
         self.env = env #get #agents, angent_names
         self.n_agents = len(self.env._agents)
         self.episodes = [[]] # list of episodes (a list of states)
         self.current_episode = 0
         self.visited_positions = None
         self.agent_colors = ['tab:blue', 'tab:orange', 'black', 'tab:red']
-        self.agent_labels = [agent.agent_name.split("Agent")[0] + f" - id:{agent._character.agent_id}" for agent in self.env._agents]
+        self.agent_labels = [_agent_name(agent) + f" - id:{agent._character.agent_id}" for agent in self.env._agents]
         if experiment_path is None:
             self.experiment_path = self._default_dir(n_episodes)
         else:
