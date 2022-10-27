@@ -46,7 +46,7 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_pat
             plotter.step(state, i_episode)
             step += 1
 
-            if False and verbose and step % 10 == 0:
+            if verbose and step % 10 == 0:
                 delta = time.time() - start
                 print('\r{:.2f} sec > Episode {} running.. step {}'.format(
                     delta, i_episode, step
