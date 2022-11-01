@@ -11,6 +11,7 @@ from typing import List
 import os
 from pypomcpp.cppagent import CppAgent
 
+FIG_WIDTH = 8
 
 def _agent_name(agent):
     if isinstance(agent, CppAgent):
@@ -105,6 +106,7 @@ class EvalPlotter():
 
         # aggregated plot
         fig, ax1 = plt.subplots(sharex=True, sharey=True)
+        fig.set_figwidth(FIG_WIDTH)
         if plot_agents_alive:
             ax2 = ax1.twinx()
             ax2.set_ylabel("Agents alive")
@@ -253,6 +255,7 @@ class EvalPlotter():
             agent_ixs = list(range(self.n_agents))
 
         fig, ax1 = plt.subplots(constrained_layout=True)
+        fig.set_figwidth(FIG_WIDTH)
         if plot_agents_alive:
             ax2 = ax1.twinx()
             ax2.set_ylabel('agents alive')
@@ -315,7 +318,8 @@ class EvalPlotter():
         
         for mode in modes:
             if mode in ["timeseries"]: # stacked
-                _, ax = plt.subplots(sharex=True)
+                fig, ax = plt.subplots(sharex=True)
+                fig.set_figwidth(FIG_WIDTH)
                 if plot_agents_alive:
                     ax2 = ax.twinx()
                 else:
