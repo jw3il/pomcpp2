@@ -1,7 +1,7 @@
+from datetime import datetime
 import socketserver
 import os
 import pommerman
-from pommerman import utility
 from pommerman.constants import GameType
 from pommerman.envs.v0 import Pomme
 import time
@@ -9,7 +9,7 @@ import numpy as np
 from pypomcpp.util_plotting import EvalPlotter
 
 
-def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_path=None, individual_plots=True, plot_agents_alive=False):
+def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_path=None, individual_plots=True, plot_agents_alive=False, log_json=False, env_type='PommeTeamCompetition-v0'):
     """
     Evaluates the given pommerman environment (already includes the agents).
 
@@ -19,6 +19,8 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_pat
     :param stop: Whether to wait for input after each step
     :param individual_plots: create additional plots for each individual agent, defaults to False
     :param plot_agents_alive: add a dashed line showing how many agents where alive/used for the aggregated result, defaults to False
+    :param log_json: option to create a json file for each game (can be used for visualization)
+    :param env_type: env-type (used for json logging), only important if log_json is set
     :return: The results of the evaluation of shape (episodes, 5) where the first column [:, 0] contains the result
              of the match (tie, win, incomplete) and the remaining columns contain the individual (final) rewards.
     """
@@ -30,8 +32,15 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_pat
     start = time.time()
 
     plotter = EvalPlotter(env, episodes, experiment_path=eval_save_path)
+    if log_json:
+        json_path = os.path.join(plotter.experiment_path, plotter.experiment_path.split("/")[-1]+"_json")
+        if not os.path.exists(json_path):
+            os.mkdir(json_path)
     # Run the episodes just like OpenAI Gym
     for i_episode in range(episodes):
+        if log_json:
+            episode_dir = os.path.join(json_path, str(i_episode+1))
+            os.mkdir(episode_dir)
         state = env.reset()
         plotter.step(state, i_episode)
         done = False
@@ -41,6 +50,8 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_pat
         while not done:
             if visualize:
                 env.render()
+            if log_json:
+                env.save_json(episode_dir)
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
             plotter.step(state, i_episode)
@@ -55,6 +66,11 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_pat
             if stop:
                 input()
 
+        if log_json:
+            env.save_json(episode_dir)
+            finished_at = datetime.now().isoformat()
+            _agents = plotter.agent_labels
+            pommerman.utility.join_json_state(episode_dir, _agents, finished_at, env_type, info)
         steps[i_episode] = step
 
         result = info['result']
