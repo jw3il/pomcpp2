@@ -86,7 +86,10 @@ class EvalPlotter():
         :param agent_state: state of an agent enf.state[agend_ix]
         :return: wether the agent is alive at the passed state
         """
-        return len(agent_state["alive"]) - len(set(agent_state["alive"]) & set([en.value for en in agent_state["enemies"]]))
+        n_alive = len(agent_state["alive"])
+        others = [en.value for en in agent_state["enemies"]] + [agent_state['teammate'].value]
+        n_others_alive = len(set(agent_state["alive"]) & set(others))
+        return n_alive-n_others_alive
 
     def _plot_attribute(self, agent_ixs, get_attribute, y_label, fig_name, individual_plots=False, plot_agents_alive=False):
         """_summary_
