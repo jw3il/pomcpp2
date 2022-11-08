@@ -17,7 +17,10 @@ def _agent_name(agent):
     if isinstance(agent, CppAgent):
         name = f"cpp_{agent.agent_name.split('Agent')[0]}"
     elif isinstance(agent, DockerAgent):
-        name = agent._docker_image
+        if "/" in agent._docker_image:
+            name = agent._docker_image.split('/')[-1]
+        else:
+            name = agent._docker_image
     else:
         name = type(agent).__name__
     return name
