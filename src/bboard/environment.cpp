@@ -236,6 +236,11 @@ State& Environment::GetState() const
     return *state.get();
 }
 
+GameMode Environment::GetGameMode() const
+{
+    return gameMode;
+}
+
 const Observation* Environment::GetObservation(uint agentID)
 {
     Observation& agentObs = observations[agentID];
