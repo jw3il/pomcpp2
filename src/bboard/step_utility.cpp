@@ -371,36 +371,56 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
     // agent-bomb collisions
     for(int i = 0; i < state->bombs.count; i++)
     {
-        const Position& bombDestination = bombDestinations[i];
+        // note that the destination can equal the bomb's current position
+        Position& bombDestination = bombDestinations[i];
         if(util::BombMovementIsBlocked(state, bombDestination))
         {
-            // bombs can be kicked
+            // if bomb movement is blocked statically, directly stop moving and adjust the destination
+            // this allows agents to still kick the bomb from its current position
+            if(bombDestination != bombPositions[i] 
+                && (IsOutOfBounds(bombDestination) || IS_STATIC_MOV_BLOCK(state->items[bombDestination.y][bombDestination.x])))
+            {
+                bombDestination = bombPositions[i];
+                bombDestinations[i] = bombDestination;
+                foundStoppingBomb = true;
+                stoppingBombs[i] = true;
+            }
+
+            // check whether the bomb should be kicked at the destination
             int agentid = state->GetAgent(bombDestination.x, bombDestination.y);
             if(agentid != -1)
             {
+                // there is an agent at the destination
                 const AgentInfo &info = state->agents[agentid];
 
-                if(info.canKick) 
+                if(info.canKick)
                 {
+                    // the bomb collides with an agent that can kick => can we kick the bomb?
                     const Position diff = info.GetPos() - oldAgentPos[agentid];
                     const Position newDestination = info.GetPos() + diff;
                     if(util::BombMovementIsBlocked(state, newDestination))
                     {
-                        // we cannot kick the bomb
-                        // .. we have to check if we have to bounce back an agent at the kick destination
-                        int indexAgent = state->GetAgent(newDestination.x, newDestination.y);
-                        if(indexAgent > -1 && state->agents[indexAgent].GetPos() != oldAgentPos[indexAgent])
+                        // we cannot kick the bomb because the newDestination is blocked
+                        // hypothesis: only bounce back agent at the new destination if the bomb already moved before
+                        if(bombDestination != bombPositions[i])
                         {
-                            agentCollisions[indexAgent] = true;
+                            // .. we have to check if we have to bounce back an agent at the kick destination
+                            int indexAgent = state->GetAgent(newDestination.x, newDestination.y);
+                            if(indexAgent > -1 && state->agents[indexAgent].GetPos() != oldAgentPos[indexAgent])
+                            {
+                                agentCollisions[indexAgent] = true;
+                                foundAgentCollision = true;
+                            }
+                            // and also bounce back the agent at the original destination
+                            agentCollisions[agentid] = true;
                             foundAgentCollision = true;
                         }
-                        // and also bounce back the agent at the original destination
-                        agentCollisions[agentid] = true;
-                        foundAgentCollision = true;
                     }
                     else 
                     {
+                        // there is no static item and no agent blocking the path => can we kick?
                         bool kickingAllowed = true;
+
                         // kicking is not allowed if a moving bomb blocks the destination
                         for(int j = 0; j < state->bombs.count; j++)
                         {
@@ -412,9 +432,23 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
                                 break;
                             }
                         }
+                        // ... or if an alive agent wants to move there
+                        for(int j = 0; j < bboard::AGENT_COUNT; j++)
+                        {
+                            if (state->agents[j].dead) continue;
+                            // original destination does not account for actual movement, i.e. the bomb is not allowed to move there
+                            // even when we already resolved the agent collisions at the destinations (2 agents wanted to move there)
+                            if(originalAgentDestination[j] == newDestination)
+                            {
+                                kickingAllowed = false;
+                                break;
+                            }
+                        }
 
                         if(kickingAllowed)
                         {
+                            // make sure that the bomb is not marked as stopping
+                            stoppingBombs[i] = false;
                             SetBombDirection(state->bombs[i], _toDirection(diff));
                             bombDestinations[i] = newDestination;
                             continue;
@@ -423,13 +457,16 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
                         // to reset the agents position
                     }
                 }
-                else
+                // hypothesis: only bounce back agent if the bomb already moved before
+                else if(bombDestination != bombPositions[i])
                 {
                     // agent at destination cannot kick and collides with the bomb => undo movement
                     agentCollisions[agentid] = true;
                     foundAgentCollision = true;
                 }
             }
+
+            // kicking was not allowed, this bomb is going to stop
             foundStoppingBomb = true;
             stoppingBombs[i] = true;
             bombDestinations[i] = bombPositions[i];
@@ -440,6 +477,8 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
             // check that moving bomb does not overlap with agent collision
             for(int a = 0; a < AGENT_COUNT; a++)
             {
+                if (state->agents[a].dead) continue;
+
                 // agent wanted to move but somehow did not get there (otherwise bomb movement would have been blocked)
                 // => bomb is not allowed to move either
                 if(originalAgentDestination[a] == bombDestination)

@@ -312,9 +312,11 @@ void _cleanFlameSpawnPosition(FixedQueue<Flame, count>& flames, const int boardI
         // find the old flame object for this position
         int flameId = bboard::FLAME_ID(boardItem);
         // start from the back to save time finding the correct index
-        for(int i = std::min(flames.count - 1, flameId); i >= 0; i--)
+        int cumulativeFlameTime = 0;
+        for(int i = 0; i < flames.count; i++)
         {
             Flame& f = flames[i];
+            cumulativeFlameTime += f.timeLeft;
             if(f.position.x == x && f.position.y == y)
             {
                 // we found the correct flame object
@@ -326,7 +328,7 @@ void _cleanFlameSpawnPosition(FixedQueue<Flame, count>& flames, const int boardI
                     return;
                 }
 
-                if(f.timeLeft == FLAME_LIFETIME)
+                if(cumulativeFlameTime == FLAME_LIFETIME)
                 {
                     // skip this flame, there already is a flame with the same lifetime
                     outContinueFlameSpawn = true;
@@ -335,15 +337,21 @@ void _cleanFlameSpawnPosition(FixedQueue<Flame, count>& flames, const int boardI
                 }
 
                 // the lifetime changes. Due to the ordering, we have to remove the old flame
+                int remainingTimeLeft = f.timeLeft;
                 if(i == 0)
                 {
                     flames.PopElem();
-                    flames[0].timeLeft += f.timeLeft;
                 }
                 else
                 {
-                    flames[i - 1].timeLeft += f.timeLeft;
                     flames.RemoveAt(i);
+                }
+
+                // warning: flames array has been modified
+                if(i < flames.count)
+                {
+                    // the next flame in the queue (if it exists) has to get the time of the frame
+                    flames[i].timeLeft += remainingTimeLeft;
                 }
 
                 outContinueFlameSpawn = true;
