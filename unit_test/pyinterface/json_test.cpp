@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include "bboard.hpp"
 #include "from_json.hpp"
+#include <tuple>
 
 // some state and the corresponding observation
 // note: the step count does not match because self._step_count is incremented AFTER the observations for the step are generated (bug in python env)
@@ -16,23 +17,24 @@
 #define JSON_STATE_RADIO "{\"game_type\": 3, \"board_size\": 11, \"step_count\": 38, \"board\": [[0, 0, 0, 1, 2, 1, 1, 1, 4, 1, 0], [0, 0, 0, 0, 0, 2, 2, 4, 4, 4, 0], [0, 10, 0, 1, 0, 1, 1, 1, 4, 0, 0], [1, 3, 1, 0, 1, 0, 1, 1, 1, 0, 1], [2, 2, 0, 1, 0, 2, 2, 2, 2, 2, 0], [1, 2, 1, 0, 2, 0, 0, 2, 1, 2, 2], [1, 3, 1, 1, 2, 0, 0, 1, 0, 2, 6], [1, 11, 1, 1, 2, 2, 1, 0, 1, 0, 0], [2, 3, 0, 1, 2, 1, 0, 1, 0, 0, 1], [1, 0, 0, 0, 8, 2, 7, 12, 0, 0, 0], [0, 0, 0, 1, 0, 2, 2, 0, 1, 0, 0]], \"agents\": [{\"agent_id\": 0, \"is_alive\": true, \"position\": [2, 1], \"ammo\": 0, \"blast_strength\": 3, \"can_kick\": false}, {\"agent_id\": 1, \"is_alive\": true, \"position\": [7, 1], \"ammo\": 0, \"blast_strength\": 2, \"can_kick\": false}, {\"agent_id\": 2, \"is_alive\": true, \"position\": [9, 7], \"ammo\": 1, \"blast_strength\": 2, \"can_kick\": true}, {\"agent_id\": 3, \"is_alive\": false, \"position\": [1, 7], \"ammo\": 1, \"blast_strength\": 2, \"can_kick\": false}], \"bombs\": [{\"position\": [6, 1], \"bomber_id\": 1, \"life\": 1, \"blast_strength\": 2, \"moving_direction\": null}, {\"position\": [8, 1], \"bomber_id\": 1, \"life\": 6, \"blast_strength\": 2, \"moving_direction\": null}, {\"position\": [3, 1], \"bomber_id\": 0, \"life\": 8, \"blast_strength\": 3, \"moving_direction\": null}], \"flames\": [{\"position\": [0, 8], \"life\": 0}, {\"position\": [1, 7], \"life\": 0}, {\"position\": [1, 8], \"life\": 0}, {\"position\": [1, 9], \"life\": 0}, {\"position\": [2, 8], \"life\": 0}], \"items\": [[[5, 7], 7], [[5, 10], 6], [[5, 9], 7], [[4, 5], 7], [[9, 5], 8], [[1, 6], 6], [[8, 4], 7], [[4, 7], 8], [[7, 5], 7], [[0, 8], 8], [[10, 5], 8], [[0, 4], 8], [[5, 4], 8], [[5, 1], 7]], \"intended_actions\": [1, 0, 3, 0], \"radio_from_agent\": {\"10\": [0, 0], \"11\": [0, 0], \"12\": [0, 0], \"13\": [0, 0]}, \"teammate\": 12, \"message\": [0, 0]}"
 #define JSON_OBS_RADIO  "{\"alive\": [10, 11, 12], \"board\": [[0, 0, 0, 1, 2, 1, 5, 5, 5, 5, 5], [0, 0, 0, 0, 0, 2, 5, 5, 5, 5, 5], [0, 10, 0, 1, 0, 1, 5, 5, 5, 5, 5], [1, 3, 1, 0, 1, 0, 5, 5, 5, 5, 5], [2, 2, 0, 1, 0, 2, 5, 5, 5, 5, 5], [1, 2, 1, 0, 2, 0, 5, 5, 5, 5, 5], [1, 3, 1, 1, 2, 0, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]], \"bomb_blast_strength\": [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], \"bomb_life\": [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 8.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], \"bomb_moving_direction\": [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], \"flame_life\": [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], \"game_type\": 3, \"game_env\": \"pommerman.envs.v2:Pomme\", \"position\": [2, 1], \"blast_strength\": 3, \"can_kick\": false, \"teammate\": 12, \"ammo\": 0, \"enemies\": [11, 13, 9], \"step_count\": 37, \"message\": [0, 0]}"
 
-typedef std::vector<std::pair<std::string, std::string>> PairType;
+typedef std::vector<std::tuple<std::string, std::string>> PairType;
+typedef std::vector<std::tuple<std::string, std::string, int>> TripleType;
 
 bool print = true;
 
 PairType allStates = (PairType){{FFA, JSON_STATE}, {TEAM, JSON_STATE_TEAM}, {RADIO, JSON_STATE_RADIO}};
-PairType allObservations = (PairType){{FFA, JSON_OBS}, {TEAM, JSON_OBS_TEAM}, {RADIO, JSON_OBS_RADIO}};
+TripleType allObservations = (TripleType){{FFA, JSON_OBS, 3}, {TEAM, JSON_OBS_TEAM, 0}, {RADIO, JSON_OBS_RADIO, 0}};
 
 TEST_CASE("Load State", "[json]")
 {
     for (auto pair : allStates)
     {
-        SECTION(pair.first)
+        SECTION(std::get<0>(pair))
         {
-            std::string jState = pair.second;
+            std::string jState = std::get<1>(pair);
             bboard::State s = StateFromJSON(jState);
             if (print) {
-                std::cout << std::endl << pair.first << " > Loaded state:" << std::endl;
+                std::cout << std::endl << std::get<0>(pair) << " > Loaded state:" << std::endl;
                 s.Print();
             }
         }
@@ -41,14 +43,14 @@ TEST_CASE("Load State", "[json]")
 
 TEST_CASE("Load Observation", "[json]")
 {
-    for (auto pair : allObservations)
+    for (auto triple : allObservations)
     {
-        SECTION(pair.first)
+        SECTION(std::get<0>(triple))
         {
-            std::string jObs = pair.second;
-            bboard::Observation o = ObservationFromJSON(jObs, 0);
+            std::string jObs = std::get<1>(triple);
+            bboard::Observation o = ObservationFromJSON(jObs, std::get<2>(triple));
             if (print) {
-                std::cout << std::endl << pair.first << " > Loaded observation:" << std::endl;
+                std::cout << std::endl << std::get<0>(triple) << " > Loaded observation:" << std::endl;
                 o.Print();
             }
         }
@@ -60,34 +62,40 @@ TEST_CASE("Reconstruct State", "[json]")
     for (int i = 0; i < allStates.size(); i++)
     {
         auto statePair = allStates[i];
-        auto observationPair = allObservations[i];
+        auto observationTriple = allObservations[i];
 
-        SECTION(statePair.first)
+        auto mode = std::get<0>(statePair);
+        SECTION(mode)
         {
-            std::string jState = statePair.second;
+            std::string jState = std::get<1>(statePair);
             bboard::State realState = StateFromJSON(jState);
 
-            std::string jObs = observationPair.second;
-            bboard::Observation o = ObservationFromJSON(jObs, 0);
+            std::string jObs = std::get<1>(observationTriple);
+            bboard::Observation o = ObservationFromJSON(jObs, std::get<2>(observationTriple));
             bboard::State reconstructedState;
             o.ToState(reconstructedState);
 
             if (print) {
-                std::cout << std::endl << statePair.first << " > Reconstructed state:" << std::endl;
+                std::cout << std::endl << mode << " > Reconstructed state:" << std::endl;
                 reconstructedState.Print();
 
                 std::cout << "Alive agents: " << realState.aliveAgents << std::endl;
             }
 
-            if (statePair.first == FFA || statePair.first == TEAM) {
+            if (mode == FFA || mode == TEAM) {
                 REQUIRE(reconstructedState.bombs.count == realState.bombs.count);
             }
 
             REQUIRE(realState.aliveAgents == reconstructedState.aliveAgents);
-            for(auto i = 0; i < bboard::AGENT_COUNT; i++)
+            for(auto j = 0; j < bboard::AGENT_COUNT; j++)
             {
-                REQUIRE(realState.agents[i].dead == reconstructedState.agents[i].dead);
-                REQUIRE(realState.agents[i].team == reconstructedState.agents[i].team);
+                if (reconstructedState.agents[j].visible)
+                {
+                    REQUIRE(realState.agents[j].x == reconstructedState.agents[j].x);
+                    REQUIRE(realState.agents[j].y == reconstructedState.agents[j].y);
+                }
+                REQUIRE(realState.agents[j].dead == reconstructedState.agents[j].dead);
+                REQUIRE(realState.agents[j].team == reconstructedState.agents[j].team);
             }
         }
     }

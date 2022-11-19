@@ -1132,6 +1132,11 @@ public:
     State& GetState() const;
 
     /**
+     * @brief GetGameMode Returns the current game mode.
+     */
+    GameMode GetGameMode() const;
+
+    /**
      * @brief Updates the observation of the given agent and returns a pointer to it.
      */
     const Observation* GetObservation(uint agentID);
