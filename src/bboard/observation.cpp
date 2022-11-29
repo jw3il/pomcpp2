@@ -400,7 +400,7 @@ void Observation::VirtualStep(State& state, bool keepAgents, bool keepBombs, int
         if (obsAgent.visible)
         {
             stateAgent.visible = true;
-            stateAgent.x = obsAgent.y;
+            stateAgent.x = obsAgent.x;
             stateAgent.y = obsAgent.y;
         }
         else if (!keepAgents)
