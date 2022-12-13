@@ -386,6 +386,8 @@ void Observation::VirtualStep(State& state, bool keepAgents, bool keepBombs, int
 
     state.timeStep = timeStep;
 
+    const AgentInfo& self = agents[agentID];
+
     // start by merging the agent information
     for (int i = 0; i < AGENT_COUNT; i++)
     {
@@ -403,9 +405,18 @@ void Observation::VirtualStep(State& state, bool keepAgents, bool keepBombs, int
             stateAgent.x = obsAgent.x;
             stateAgent.y = obsAgent.y;
         }
-        else if (!keepAgents)
+        else if (
+            // reset agents when we don't see them.. and don't want to keep them
+            !keepAgents 
+            // or when they should have been in our current observation
+            || !params.agentPartialMapView 
+            || InViewRange(self.GetPos(), stateAgent.GetPos(), params.agentViewSize)
+        )
         {
             stateAgent.visible = false;
+            // update invalid position to be compatible with destination checks 
+            stateAgent.x = -i;
+            stateAgent.y = -1;
         }
 
         if (obsAgent.statsVisible)
