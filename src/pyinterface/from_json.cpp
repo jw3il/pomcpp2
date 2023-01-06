@@ -127,7 +127,8 @@ void _agentInfoFromJSON(const nlohmann::json& pyInfo, AgentInfo& info, int agent
 
     info.statsVisible = true;
     info.canKick = pyInfo["can_kick"];
-    // WARNING: Not possible to get actual bomb count from observation (?)
+    // WARNING: Not possible to get actual bomb count from observation
+    //          -> pyagent adds own bomb count to obs
     info.bombCount = agentActiveBombsCount;
     info.maxBombCount = agentActiveBombsCount + pyInfo["ammo"].get<int>();
     info.bombStrength = pyInfo["blast_strength"];
@@ -339,7 +340,7 @@ void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agent
     
     AgentInfo& ownInfo = obs.agents[agentId];
     // TODO: Maybe reconstruct number of own active bombs?
-    _agentInfoFromJSON(pyObs, ownInfo);
+    _agentInfoFromJSON(pyObs, ownInfo, pyObs["max_bombs"].get<int>() - pyObs["ammo"].get<int>());
 
     // set board
 
