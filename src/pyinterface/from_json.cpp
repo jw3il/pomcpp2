@@ -339,7 +339,6 @@ void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agent
     // we can ignore the "enemies" array because this is already known due to the team mode
     
     AgentInfo& ownInfo = obs.agents[agentId];
-    // TODO: Maybe reconstruct number of own active bombs?
     _agentInfoFromJSON(pyObs, ownInfo, pyObs["max_bombs"].get<int>() - pyObs["ammo"].get<int>());
 
     // set board
