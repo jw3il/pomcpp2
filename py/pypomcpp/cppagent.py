@@ -39,7 +39,7 @@ class CppAgent(agents.BaseAgent):
         self.sum_encode_time = 0.0
         self.sum_agent_act_time = 0.0
         self.last_board = None
-        self.max_bomb_count = 2
+        self.max_bomb_count = 1
 
     def use_env_state(self, env: Pomme):
         """
@@ -100,7 +100,7 @@ class CppAgent(agents.BaseAgent):
 
         # check if ExtraBomb powerup was collected and add bomb capacity to obs 
         if obs['step_count'] == 0:
-            self.max_bomb_count = 2
+            self.max_bomb_count = 1
         else:
             if self.last_board[obs['position']] == Item.ExtraBomb.value:
                 self.max_bomb_count += 1
@@ -175,6 +175,7 @@ class CppAgent(agents.BaseAgent):
             raise ValueError("Episode ended before id has been set!")
 
         # as there is no "real" reset in the agent interface, we use episode_end
+        self.max_bomb_count = 1
         self.agent_reset(self.id)
 
     def print_time_stats(self):
