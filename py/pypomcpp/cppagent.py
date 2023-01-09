@@ -2,7 +2,7 @@ import pommerman
 import pommerman.agents as agents
 import pommerman.utility as utility
 from gym.spaces import Tuple, Discrete
-from pommerman.constants import Action
+from pommerman.constants import Action, Item
 from pommerman.envs.v0 import Pomme
 from pypomcpp.clib import CLib
 import time
@@ -38,6 +38,8 @@ class CppAgent(agents.BaseAgent):
         self.total_steps = 0
         self.sum_encode_time = 0.0
         self.sum_agent_act_time = 0.0
+        self.last_board = None
+        self.max_bomb_count = 1
 
     def use_env_state(self, env: Pomme):
         """
@@ -95,6 +97,16 @@ class CppAgent(agents.BaseAgent):
 
     def act(self, obs, action_space):
         act_start = time.time()
+
+        # check if ExtraBomb powerup was collected and add bomb capacity to obs 
+        if obs['step_count'] == 0:
+            self.max_bomb_count = 1
+        else:
+            if self.last_board[obs['position']] == Item.ExtraBomb.value:
+                self.max_bomb_count += 1
+                
+        obs['max_bombs'] = self.max_bomb_count
+        self.last_board = obs['board']
 
         if self.env:
             json_input = self.get_state_json()
@@ -163,6 +175,7 @@ class CppAgent(agents.BaseAgent):
             raise ValueError("Episode ended before id has been set!")
 
         # as there is no "real" reset in the agent interface, we use episode_end
+        self.max_bomb_count = 1
         self.agent_reset(self.id)
 
     def print_time_stats(self):
