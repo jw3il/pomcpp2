@@ -61,10 +61,11 @@ class CppAgent(agents.BaseAgent):
             if isinstance(a, CppAgent):
                 a.use_env_state(env)
 
-    def get_state_json(self):
+    def get_state_json(self, hide_items=False):
         """
         Get the current environment state as json.
 
+        :hide_items: option to remove items that are hidden under a box
         :return: the current environment state as json.
         """
         env: Pomme = self.env
@@ -80,6 +81,9 @@ class CppAgent(agents.BaseAgent):
             'items': [[k, i] for k, i in env._items.items()],
             'intended_actions': env._intended_actions,
         }
+
+        if hide_items:
+            del state['items']
 
         if hasattr(env, '_radio_from_agent'):
             radio_from_agent = {}
@@ -109,7 +113,7 @@ class CppAgent(agents.BaseAgent):
         self.last_board = obs['board']
 
         if self.env:
-            json_input = self.get_state_json()
+            json_input = self.get_state_json(hide_items=True)
             if self.print_json:
                 json_obs = json.dumps(obs, cls=utility.PommermanJSONEncoder)
                 print("State: ", json_input.replace("\"", "\\\""))
