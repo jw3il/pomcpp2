@@ -628,7 +628,7 @@ public:
      * @brief GetBomb Returns a bomb at the specified location or 0 if
      * no bomb has that position
      */
-    Bomb* GetBomb(int x, int y);
+    Bomb* GetBomb(int x, int y) const;
 
     /**
      * @brief GetBombIndex If a bomb is at position (x,y), then
@@ -898,6 +898,9 @@ public:
 
     /**
      * @brief Execute a virtual step by merging this observation (timestep t+1) into the given state (timestep t).
+     * Tracks previously seen items and can keep agents and bombs depending on the given arguments.
+     * 
+     * Warning: is an EXPERIMENTAL heuristic.
      * 
      * @param state The last state that will be updated with the information from this observation.
      * @param keepAgents Whether to keep old agents (also removes duplicates)
@@ -905,6 +908,15 @@ public:
      * @param itemAge Can be used to keep track of age of all items (#steps since last update)
      */
     void VirtualStep(State& state, bool keepAgents, bool keepBombs, int (*itemAge)[BOARD_SIZE][BOARD_SIZE] = nullptr) const;
+
+    /**
+     * @brief Updates agent stats and bomb ownership in this observation using given board information from the last step.
+     * 
+     * Warning: Requires the board to be fully visible to work correctly.
+     * 
+     * @param oldBoard The last board holding previous state information (can be observation or state).
+     */
+    void TrackStats(const Board& oldBoard);
 
     void Print(bool clearConsole = false) const override;
 };

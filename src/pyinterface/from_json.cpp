@@ -307,6 +307,7 @@ void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agent
     // - board (int matrix), bomb_blast_strength (float matrix), bomb_life (float matrix), bomb_moving_direction (float matrix), flame_life (float matrix)
     
     GameMode gameMode = _mapPyToGameMode(pyObs["game_type"].get<int>());
+    obs.timeStep = pyObs["step_count"];
 
     obs.params = _getPythonObsParams(gameMode);
 
@@ -387,21 +388,7 @@ void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agent
 
                 // WARNING: Bomber Id is not not known! This means based on a single observation,
                 // we do not know when our ammo fills back up in the future.
-
-                // because of this, we try to reconstruct our own bombs based on the last observation
-                // idea: when performing an action, remember agent ids in the last observation struct
-
-                // TODO: This simple approximation breaks when bombs move. Maybe one could include
-                // the moving direction to reconstruct agent ids of moving bombs.
-                /*if(ownBombs.find({x, y}) != ownBombs.end())
-                {
-                    SetBombID(b, agentId);
-                }
-                else
-                {*/
-                // illegal agent id
                 SetBombID(b, AGENT_COUNT);
-                //}
 
                 int blastStrength = (int)pyObs["bomb_blast_strength"][y][x].get<float>() - 1;
                 SetBombStrength(b, blastStrength);
@@ -410,9 +397,6 @@ void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agent
                 SetBombDirection(b, direction);
 
                 SetBombTime(b, life);
-
-                // std::cout << "Bomb: Life " << life << ", strength: " << blastStrength << ", dir: " << (int)direction << std::endl;
-
                 obs.bombs.count++;
             }
         }

@@ -114,13 +114,13 @@ bool Board::HasBomb(int x, int y) const
     return false;
 }
 
-Bomb* Board::GetBomb(int x, int y)
+Bomb* Board::GetBomb(int x, int y) const
 {
     for(int i = 0; i < bombs.count; i++)
     {
         if(BMB_POS_X(bombs[i]) == x && BMB_POS_Y(bombs[i]) == y)
         {
-            return &bombs[i];
+            return (Bomb*)&bombs[i];
         }
     }
     return nullptr;

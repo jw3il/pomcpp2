@@ -474,3 +474,250 @@ TEST_CASE("Merge Observations", "[observation]")
         }
     }
 }
+
+void ClearBombOwnership(Observation& obs)
+{
+    for(int i = 0; i < obs.bombs.count; i++) {
+        int& bomb = obs.bombs[i];
+        bboard::SetBombID(bomb, bboard::AGENT_COUNT);
+    }
+}
+
+TEST_CASE("TrackStats Tests", "[stats tracking]")
+{
+    ObservationParameters params;
+    params.agentInfoVisibility = AgentInfoVisibility::OnlySelf;
+    params.agentPartialMapView = false;
+
+    Observation obs, oldObs;
+
+    auto s = std::make_unique<bboard::State>();
+    s->timeStep = 0;
+    bboard::Move id = bboard::Move::IDLE;
+    bboard::Move m[4] = {id, id, id, id};
+
+    SECTION("Collect Kick")
+    {
+        REQUIRE(s->agents[0].canKick == false);
+        s->PutAgent(0, 0, 0);
+        s->PutItem(1, 0, Item::KICK);
+        s->PutItem(2, 0, Item::KICK);
+        s->Kill(2, 3);
+
+        Observation::Get(*s, 1, params, obs);
+        obs.TrackStats(oldObs);
+        oldObs = obs;
+
+        m[0] = Move::RIGHT;
+        s->Step(m);
+        REQUIRE(s->agents[0].canKick == true);
+
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].canKick == false);
+        obs.TrackStats(oldObs);
+        oldObs = obs;
+        REQUIRE(obs.agents[0].canKick == true);
+
+        s->Step(m);
+        REQUIRE(s->agents[0].canKick == true);
+
+        Observation::Get(*s, 1, params, obs);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].canKick == true);
+    }
+    SECTION("Collect Range")
+    {
+        int initialRange = s->agents[0].bombStrength;
+        REQUIRE(s->agents[0].bombStrength == initialRange);
+        s->PutAgent(0, 0, 0);
+        s->PutItem(1, 0, Item::INCRRANGE);
+        s->PutItem(2, 0, Item::INCRRANGE);
+        s->Kill(2, 3);
+
+        Observation::Get(*s, 1, params, obs);
+        obs.TrackStats(oldObs);
+        oldObs = obs;
+
+        m[0] = Move::RIGHT;
+        s->Step(m);
+        REQUIRE(s->agents[0].bombStrength == initialRange + 1);
+
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].bombStrength == initialRange);
+        obs.TrackStats(oldObs);
+        oldObs = obs;
+        REQUIRE(obs.agents[0].bombStrength == initialRange + 1);
+
+        s->Step(m);
+        REQUIRE(s->agents[0].bombStrength == initialRange + 2);
+
+        Observation::Get(*s, 1, params, obs);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].bombStrength == initialRange + 2);
+    }
+    SECTION("Collect Extrabomb")
+    {
+        int initialBombs = s->agents[0].maxBombCount;
+        REQUIRE(s->agents[0].maxBombCount == initialBombs);
+        s->PutAgent(0, 0, 0);
+        s->PutItem(1, 0, Item::EXTRABOMB);
+        s->PutItem(2, 0, Item::EXTRABOMB);
+        s->Kill(2, 3);
+
+        Observation::Get(*s, 1, params, obs);
+        obs.TrackStats(oldObs);
+        oldObs = obs;
+
+        m[0] = Move::RIGHT;
+        s->Step(m);
+        REQUIRE(s->agents[0].maxBombCount == initialBombs + 1);
+
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].maxBombCount == initialBombs);
+        obs.TrackStats(oldObs);
+        oldObs = obs;
+        REQUIRE(obs.agents[0].maxBombCount == initialBombs + 1);
+
+        s->Step(m);
+        REQUIRE(s->agents[0].maxBombCount == initialBombs + 2);
+
+        Observation::Get(*s, 1, params, obs);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].maxBombCount == initialBombs + 2);
+    }
+    SECTION("Bomb count - agent places bomb")
+    {
+        s->PutAgent(0, 0, 0);
+        s->PutAgent(9, 0, 1);
+        s->Kill(2, 3);
+
+        Observation::Get(*s, 1, params, obs);
+        ClearBombOwnership(obs);
+        obs.TrackStats(oldObs);
+        oldObs = obs;
+
+        // place bomb
+        m[0] = bboard::Move::BOMB;
+        s->Step(m);
+
+        Observation::Get(*s, 1, params, obs);
+        ClearBombOwnership(obs);
+
+        REQUIRE(obs.bombs.count == 1);
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == bboard::AGENT_COUNT);
+        REQUIRE(obs.agents[0].bombCount == 0);
+        REQUIRE(obs.agents[0].statsVisible == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == 0);
+        REQUIRE(obs.agents[0].bombCount == 1);
+        REQUIRE(obs.agents[0].statsVisible == true);
+        oldObs = obs;
+
+        // move right
+        m[0] = bboard::Move::RIGHT;
+        
+        Observation::Get(*s, 1, params, obs);
+        ClearBombOwnership(obs);
+        
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == bboard::AGENT_COUNT);
+        REQUIRE(obs.agents[0].statsVisible == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == 0);
+        REQUIRE(obs.agents[0].bombCount == 1);
+        REQUIRE(obs.agents[0].statsVisible == true);
+    }
+    SECTION("Bomb tracking - kicking bombs")
+    {
+        s->agents[0].canKick = true;
+        s->PutAgent(0, 0, 0);
+        s->PutAgent(9, 0, 1);
+        s->PutBomb(1, 0, 0, 1, 10, true);
+        s->Kill(2, 3);
+        // 0  b  ... 1
+
+        // important: get initial stats from state as we artificially placed the bomb
+        State initialState = *s;
+        s->Step(m);
+        Observation::Get(*s, 1, params, obs);
+        obs.TrackStats(initialState);
+
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == 0);
+        REQUIRE(obs.agents[0].bombCount == 1);
+        oldObs = obs;
+
+        m[0] = bboard::Move::RIGHT;
+        s->Step(m);
+
+        // expected:
+        //    0  b  ... 1
+        Observation::Get(*s, 1, params, obs);
+        ClearBombOwnership(obs);
+
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == bboard::AGENT_COUNT);
+        REQUIRE(obs.agents[0].statsVisible == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].statsVisible == true);
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == 0);
+        REQUIRE(obs.agents[0].bombCount == 1);
+        oldObs = obs;
+
+        m[0] = bboard::Move::IDLE;
+        s->Step(m);
+
+        // expected:
+        //    0     b  ... 1
+        Observation::Get(*s, 1, params, obs);
+        ClearBombOwnership(obs);
+
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == bboard::AGENT_COUNT);
+        REQUIRE(obs.agents[0].statsVisible == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].statsVisible == true);
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == 0);
+        REQUIRE(bboard::BMB_POS_X(obs.bombs[0]) == 3);
+        REQUIRE(bboard::BMB_POS_Y(obs.bombs[0]) == 0);
+        REQUIRE(obs.agents[0].bombCount == 1);
+    }
+    SECTION("Bomb tracking - kicking moving bombs")
+    {
+        s->agents[0].canKick = true;
+        s->PutAgent(0, 2, 0);
+        s->PutAgent(9, 2, 1);
+        s->PutBomb(1, 0, 0, 1, 10, true);
+        Bomb &b = s->bombs[0];
+        SetBombDirection(b, Direction::DOWN);
+        s->Kill(2, 3);
+        //    b
+        //    
+        // 0     ... 1
+
+
+        // important: get initial stats from state as we artificially placed the bomb
+        State initialState = *s;
+        s->Step(m);
+        Observation::Get(*s, 1, params, obs);
+        obs.TrackStats(initialState);
+
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == 0);
+        REQUIRE(obs.agents[0].bombCount == 1);
+        oldObs = obs;
+
+        // bomb moves down, agent moves right
+        m[0] = bboard::Move::RIGHT;
+        s->Step(m);
+
+        // expected:
+        //
+        //    
+        //    0  b  ... 1
+        Observation::Get(*s, 1, params, obs);
+        ClearBombOwnership(obs);
+
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == bboard::AGENT_COUNT);
+        REQUIRE(obs.agents[0].statsVisible == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].statsVisible == true);
+        REQUIRE(bboard::BMB_ID(obs.bombs[0]) == 0);
+        REQUIRE(obs.agents[0].bombCount == 1);
+    }
+}
