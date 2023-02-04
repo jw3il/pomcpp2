@@ -401,8 +401,10 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
                     if(util::BombMovementIsBlocked(state, newDestination))
                     {
                         // we cannot kick the bomb because the newDestination is blocked
+
                         // hypothesis: only bounce back agent at the new destination if the bomb already moved before
-                        if(bombDestination != bombPositions[i])
+                        // note: it looks like these chains are not handled by Python, the agent at the destination is allowed to move
+                        /*if(bombDestination != bombPositions[i])
                         {
                             // .. we have to check if we have to bounce back an agent at the kick destination
                             int indexAgent = state->GetAgent(newDestination.x, newDestination.y);
@@ -414,7 +416,11 @@ void ResolveBombMovement(State* state, const Position oldAgentPos[AGENT_COUNT], 
                             // and also bounce back the agent at the original destination
                             agentCollisions[agentid] = true;
                             foundAgentCollision = true;
-                        }
+                        }*/
+
+                        // bounce back the agent at the original destination
+                        agentCollisions[agentid] = true;
+                        foundAgentCollision = true;
                     }
                     else 
                     {

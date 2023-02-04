@@ -805,7 +805,33 @@ TEST_CASE("Bomb Kick Mechanics", "[step function]")
         REQUIRE(BMB_POS_X(s->bombs[1]) == 7);
         REQUIRE(BMB_POS_Y(s->bombs[1]) == 2);
     }
-
+    SECTION("Only kick if no agent wants to move on destination - moving bomb")
+    {
+        // remove previously placed bomb
+        s->bombs.count = 0;
+        s->items[1][1] = Item::PASSAGE;
+        // start placing agents
+        s->PutAgent(0, 1, 0);
+        s->PutAgent(2, 2, 1);
+        s->agents[1].canKick = true;
+        s->PutBomb(1, 0, 0, 1, 10, true);
+        Bomb &b = s->bombs[0];
+        SetBombDirection(b, Direction::DOWN);
+        s->Kill(2, 3);
+        //    b
+        // 0     
+        //       1
+        m[0] = bboard::Move::RIGHT;
+        m[1] = bboard::Move::UP;
+        s->Step(m);
+        // expected:
+        //    b
+        // 0     1
+        //       
+        REQUIRE_AGENT(s.get(), 0, 0, 1);
+        REQUIRE_AGENT(s.get(), 1, 2, 1);
+        REQUIRE(s->items[0][1] == Item::BOMB);
+    }
     SECTION("Bomb - Bomb - Static collision")
     {
         s->Kill(1, 2, 3);
