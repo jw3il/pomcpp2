@@ -43,7 +43,7 @@ extern "C" {
      * @param jsonIsState Whether json contains a state (true) or observation (false)
      * @return The action of the agent. -1 if there has been an error.
      */
-    int agent_act(char* cjson, bool jsonIsState);
+    int agent_act(char* stateJson, char* obsJson, bool jsonIsState);
 
     /**
      * @brief If the agent tries to send a python-compatible message in this step, 

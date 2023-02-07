@@ -27,7 +27,7 @@ class CppAgent(agents.BaseAgent):
         lib = CLib(library_path)
         self.agent_create = lib.get_fun("agent_create", [ctypes.c_char_p, ctypes.c_long], ctypes.c_bool)
         self.agent_reset = lib.get_fun("agent_reset", [], ctypes.c_void_p)
-        self.agent_act = lib.get_fun("agent_act", [ctypes.c_char_p, ctypes.c_bool], ctypes.c_int)
+        self.agent_act = lib.get_fun("agent_act", [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_bool], ctypes.c_int)
         self.get_message = lib.get_fun("get_message", [ctypes.c_void_p, ctypes.c_void_p], ctypes.c_void_p)
 
         # create agent
@@ -114,18 +114,19 @@ class CppAgent(agents.BaseAgent):
 
         if self.env:
             json_input = self.get_state_json(hide_items=True)
+            json_obs = json.dumps(obs, cls=utility.PommermanJSONEncoder)
             if self.print_json:
-                json_obs = json.dumps(obs, cls=utility.PommermanJSONEncoder)
                 print("State: ", json_input.replace("\"", "\\\""))
                 print("Obs: ", json_obs.replace("\"", "\\\""))
         else:
             json_input = json.dumps(obs, cls=utility.PommermanJSONEncoder)
+            json_obs = json_input
             if self.print_json:
                 print("Obs: ", json_input.replace("\"", "\\\""))
 
-        act_encoded = time.time()
 
-        move = self.agent_act(json_input.encode('utf-8'), self.env is not None)
+        act_encoded = time.time()
+        move = self.agent_act(json_input.encode('utf-8'), json_obs.encode('utf-8'), self.env is not None)
         act_done = time.time()
 
         diff_encode = (act_encoded - act_start)
