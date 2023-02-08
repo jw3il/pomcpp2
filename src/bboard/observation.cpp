@@ -97,10 +97,14 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
                     for(int x = leftFogCount; x < rightFogBegin; x++)
                     {
                         int item = state.items[y][x];
+                        // erase the powerup information from wood and flames
                         if(IS_WOOD(item))
                         {
-                            // erase the powerup information
                             observation.items[y][x] = Item::WOOD;
+                        }
+                        else if (IS_FLAME(item))
+                        {
+                            observation.items[y][x] = CLEAR_POWFLAG(item);
                         }
                         else
                         {

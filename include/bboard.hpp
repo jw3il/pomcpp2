@@ -107,6 +107,10 @@ inline int WOOD_POWFLAG(int x)
 {
     return ((x) & 0b11);
 }
+inline int CLEAR_POWFLAG(int x)
+{
+    return ((x) & ~0b11);
+}
 
 /**
  * @brief The FixedQueue struct implements a fixed-size queue,
