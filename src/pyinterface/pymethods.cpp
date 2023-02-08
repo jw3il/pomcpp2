@@ -63,8 +63,10 @@ int agent_act(char* cjson, bool jsonIsState)
 
     nlohmann::json json = nlohmann::json::parse(cjson);
     // std::cout << "json > " << json << std::endl;
+    PyInterface::observation = Observation();
     if(jsonIsState)
     {
+        PyInterface::state = State();
         StateFromJSON(PyInterface::state, json);
 
         ObservationParameters fullyObservable;
