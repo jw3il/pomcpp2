@@ -281,3 +281,143 @@ TEST_CASE("Baseline Agent vs. Improved Agent", "[agent statistics]")
     std::cout << std::endl << FGRN(txt) << std::endl;
     playGames(agents, bboard::GameMode::FreeForAll, 10000, rng, true);
 }
+
+bool _equal_stats(const bboard::AgentInfo& a, const bboard::AgentInfo& b)
+{
+    return a.canKick == b.canKick && a.bombCount == b.bombCount && a.bombStrength == b.bombStrength && a.maxBombCount == b.maxBombCount;
+}
+
+// Note that it is not possible to fully reconstruct the stats, even in the FFA case.
+// Reason: power ups are hidden below flames when bombs explode. If an agent
+//         moves to the flame in the same step as it vanishes, the powerup is
+//         never included in the observation. Only the agent that collected
+//         the powerup knows of its stat update.
+// => We just abort move on to the next episode when we detect this case.
+TEST_CASE("TrackStats Live Testing", "[live testing tracking]")
+{
+    int numGames = 1000;
+
+    int seed = 42;
+    std::mt19937 rng(seed);
+
+    int totalTestedSteps = 0;
+    int totalTestedChanges = 0;
+    int steps = 800;
+
+    bboard::ObservationParameters parameters;
+    // regular FFA parameters
+    parameters.agentInfoVisibility = bboard::AgentInfoVisibility::OnlySelf;
+    parameters.exposePowerUps = false;
+    parameters.agentPartialMapView = false;
+
+    bboard::State reconstuctedStates[bboard::AGENT_COUNT];
+
+    std::cout << "TrackStats live testing in mode ";
+    SECTION("Free For All")
+    {
+        std::cout << "\"FreeForAll\"... " << std::flush;
+        bool everythingOk = true;
+        for(int g = 0; g < numGames; g++)
+        {
+            auto agents = CreateAgents(rng);
+
+            // create an environment
+            bboard::Environment e;
+
+            // initializes the game/board/agents
+            e.MakeGame(ToPointerArray(agents), bboard::GameMode::FreeForAll, (int)rng());
+            e.SetObservationParameters(parameters);
+
+            bboard::State oldState;
+            while(!e.IsDone() && (steps <= 0 || e.GetState().timeStep < steps))
+            {
+                const bboard::State s = e.GetState();
+                // check if the state is still trackable
+                if (s.timeStep > 0)
+                {
+                    int numChanges = 0;
+                    bool untrackable = false;
+                    for (int i = 0; i < bboard::AGENT_COUNT; i++)
+                    {
+                        const bboard::AgentInfo& info = s.agents[i];
+                        const bboard::AgentInfo& oldInfo = oldState.agents[i];
+
+                        if (!_equal_stats(info, oldInfo))
+                        {
+                            numChanges++;
+                            // check if the change is untrackable (walking into flame)
+                            if (bboard::IS_FLAME(oldState.items[info.y][info.x]))
+                            {
+                                untrackable = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (untrackable) {
+                        break;
+                    }
+                    
+                    totalTestedChanges += numChanges;
+                }
+
+                totalTestedSteps++;
+
+                // track stats for each observation
+                for (int i = 0; i < bboard::AGENT_COUNT; i++)
+                {
+                    const bboard::AgentInfo& info = s.agents[i];
+                    if (info.dead || !info.visible) {
+                        continue;
+                    }
+                    
+                    bboard::Observation obs = *e.GetObservation(i);
+                    bboard::Observation tmp = obs;
+
+                    if (tmp.timeStep == 0) {
+                        // reset state
+                        reconstuctedStates[i] = bboard::State();
+                    }
+
+                    if (tmp.timeStep > 0) {
+                        tmp.TrackStats(reconstuctedStates[i]);
+                    }
+
+                    // then save it in the state object
+                    tmp.ToState(reconstuctedStates[i]);
+
+                    // now: compare real with reconstructed state object
+                    for (int j = 0; j < bboard::AGENT_COUNT; j++) {
+                        const bboard::AgentInfo& target = s.agents[j];
+                        const bboard::AgentInfo& tracking = reconstuctedStates[i].agents[j];
+
+                        if (target.dead && tracking.dead) {
+                            // we ignore dead agents
+                            continue;
+                        }
+
+                        if (!_equal_stats(target, tracking))
+                        {
+                            std::cout << "Old State:" << std::endl;
+                            oldState.Print();
+                            std::cout << "Real State:" << std::endl;
+                            s.Print();
+                            std::cout << "Reconstructed state of " << i << ", agent " << j << " at time " << reconstuctedStates[i].timeStep << std::endl;
+                            reconstuctedStates[i].Print();
+                            std::cout << s.timeStep << ", " << reconstuctedStates[i].timeStep << std::endl;
+                            everythingOk = false;
+                        }
+                    }
+                }
+
+                if (!everythingOk) {
+                    break;
+                }
+
+                oldState = s;
+                e.Step(false);
+            }
+        }
+        std::cout << " tested steps " <<  totalTestedSteps << ", stat changes: " << totalTestedChanges << std::endl;
+        REQUIRE(everythingOk == true);
+    }
+}

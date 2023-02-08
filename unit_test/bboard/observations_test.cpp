@@ -533,6 +533,111 @@ TEST_CASE("TrackStats Tests", "[stats tracking]")
         obs.TrackStats(oldObs);
         REQUIRE(obs.agents[0].canKick == true);
     }
+    SECTION("Reconstruct Kick")
+    {
+        s->PutAgent(0, 1, 0);
+        s->PutAgent(8, 2, 1);
+        s->agents[0].canKick = true;
+        s->PutBomb(1, 1, 0, bboard::BOMB_DEFAULT_STRENGTH, bboard::BOMB_LIFETIME, true);
+        Bomb &b = s->bombs[0];
+        SetBombDirection(b, Direction::IDLE);
+        s->Kill(2, 3);
+        // agent moves right
+        //
+        // 0  b 
+
+        // observation does not know that agent 0 can kick
+        obs = Observation();
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].canKick == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].canKick == false);
+        oldObs = obs;
+        m[0] = bboard::Move::RIGHT;
+        s->Step(m);
+        // expected:
+        //
+        //    0  b
+
+        // now we know that the agent can kick
+        obs = Observation();
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].canKick == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].canKick == true);
+        oldObs = obs;
+    }
+    SECTION("Reconstruct Kick - Moving Bomb")
+    {
+        s->PutAgent(0, 2, 0);
+        s->PutAgent(8, 2, 1);
+        s->agents[0].canKick = true;
+        s->PutBomb(1, 1, 0, bboard::BOMB_DEFAULT_STRENGTH, bboard::BOMB_LIFETIME, true);
+        Bomb &b = s->bombs[0];
+        SetBombDirection(b, Direction::DOWN);
+        s->Kill(2, 3);
+        // bomb moves down, agent moves right
+        //
+        //    b
+        // 0  
+
+        // observation does not know that agent 0 can kick
+        obs = Observation();
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].canKick == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].canKick == false);
+        oldObs = obs;
+        m[0] = bboard::Move::RIGHT;
+        s->Step(m);
+        // expected:
+        //
+        //    
+        //    0  b
+
+        // now we know that the agent can kick
+        obs = Observation();
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].canKick == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].canKick == true);
+        oldObs = obs;
+    }
+    SECTION("Reconstruct Kick - Bomb already moved")
+    {
+        // if the bomb already moved, we cannot say anything about the agent being able to kick
+        s->PutAgent(0, 1, 0);
+        s->PutAgent(8, 2, 1);
+        s->agents[0].canKick = false;
+        s->PutBomb(1, 1, 0, bboard::BOMB_DEFAULT_STRENGTH, bboard::BOMB_LIFETIME, true);
+        Bomb &b = s->bombs[0];
+        SetBombDirection(b, Direction::RIGHT);
+        s->Kill(2, 3);
+        // agent moves right, bomb moves right
+        //
+        // 0  b 
+
+        // observation does not know whether agent 0 can kick (assumes false)
+        obs = Observation();
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].canKick == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].canKick == false);
+        oldObs = obs;
+        m[0] = bboard::Move::RIGHT;
+        s->Step(m);
+        // expected:
+        //
+        //    0  b
+
+        // we still don't know anything
+        obs = Observation();
+        Observation::Get(*s, 1, params, obs);
+        REQUIRE(obs.agents[0].canKick == false);
+        obs.TrackStats(oldObs);
+        REQUIRE(obs.agents[0].canKick == false);
+        oldObs = obs;
+    }
     SECTION("Collect Range")
     {
         int initialRange = s->agents[0].bombStrength;
