@@ -77,7 +77,9 @@ int agent_act(char* stateJson, char* obsJson, bool jsonIsState)
 
         // continue with real observation
         ObservationFromJSON(obs, jsonObs, agent->id);
+        // std::cout << trueState.timeStep << ", " << trueObs.timeStep << ", " << obs.timeStep << std::endl;
         obs.TrackStats(oldObs);
+        // std::cout << trueState.timeStep << ", " << trueObs.timeStep << ", " << obs.timeStep << std::endl;
         oldObs = obs;
 
         // check bombs
@@ -86,12 +88,12 @@ int agent_act(char* stateJson, char* obsJson, bool jsonIsState)
         }
         for(int i = trueObs.bombs.count - 1; i >= 0; i--)
         {   
-            Bomb b = trueObs.bombs.queue[i];
+            Bomb b = trueObs.bombs[i];
             //search corresponding bomb in obs
             bool found = false;
             for(int j = obs.bombs.count - 1; j >= 0; j--){
-                Bomb bb = obs.bombs.queue[j];
-                if ((BMB_ID(b)==BMB_ID(bb)) && (BMB_POS_X(b)==BMB_POS_X(bb)) && (BMB_POS_Y(b)==BMB_POS_Y(bb))){
+                Bomb bb = obs.bombs[j];
+                if ((BMB_ID(b)==BMB_ID(bb)) && (BMB_POS_X(b)==BMB_POS_X(bb)) && (BMB_POS_Y(b)==BMB_POS_Y(bb)) && (BMB_STRENGTH(b) == BMB_STRENGTH(bb)) && (BMB_DIR(b) == BMB_DIR(bb)) && (BMB_TIME(b) == BMB_TIME(bb))){
                     found = true;
                 }
             }
@@ -100,7 +102,99 @@ int agent_act(char* stateJson, char* obsJson, bool jsonIsState)
             }
         }
 
+        int runningLife = 0;
+        bool sorted = true;
+        std::stringstream ss;
+        ss << "True obs bombs: ";
+        for(int i = 0; i < trueObs.bombs.count; i++)
+        {   
+            int life = BMB_TIME(trueObs.bombs[i]);
+            ss << life << " ";
+            if (life < runningLife) {
+                sorted = false;
+            }
+            runningLife = life;
+        }
+        if (!sorted) {
+            ss << ".... are not sorted!";
+            std::cout << ss.str() << std::endl;
+        }
+
+        ss.clear();
+        runningLife = 0;
+        sorted = true;
+        ss << "Obs bombs: ";
+        for(int i = 0; i < obs.bombs.count; i++)
+        {   
+            int life = BMB_TIME(obs.bombs[i]);
+            ss << life << " ";
+            if (life < runningLife) {
+                sorted = false;
+            }
+            runningLife = life;
+        }
+        if (!sorted) {
+            ss << ".... are not sorted!";
+            std::cout << ss.str() << std::endl;
+        }
+
+        // check flames
+        for(int y = 0; y < BOARD_SIZE; y++) {
+            for(int x = 0; x < BOARD_SIZE; x++) {
+                int item = trueState.items[y][x];
+                if (IS_FLAME(item)) {
+                    // flame is also in obs
+                    if(IS_FLAME(obs.items[y][x])) {
+                        bool foundFlame = false;
+                        int cumulativeFlameTime = 0;
+                        for (int i = 0; i < trueState.flames.count; i++) {
+                            Flame f = trueState.flames[i];
+                            cumulativeFlameTime += f.timeLeft;
+                            if (f.position.x == x && f.position.y == y) {
+                                foundFlame = true;
+                                break;
+                            }
+                        }
+                        if (!foundFlame) {
+                            std::cout << "Did not find flame at pos in true state!" << std::endl;
+                            break;
+                        }
+                        foundFlame = false;
+                        int cumulativeFlameTime2 = 0;
+                        for (int i = 0; i < obs.flames.count; i++) {
+                            Flame f = obs.flames[i];
+                            cumulativeFlameTime2 += f.timeLeft;
+                            if (f.position.x == x && f.position.y == y) {
+                                foundFlame = true;
+                                break;
+                            }
+                        }
+                        if (!foundFlame) {
+                            std::cout << "Did not find flame at pos in obs!" << std::endl;
+                            break;
+                        }
+                        if (cumulativeFlameTime != cumulativeFlameTime2) {
+                            std::cout << "Incorrect flame time at " << x << y << ": " << cumulativeFlameTime << " and " << cumulativeFlameTime2 << std::endl;
+                            std::cout << "True State:" << std::endl;
+                            trueState.Print();
+                            
+                            std::cout << "Observation:" << std::endl;
+                            State tmp;
+                            obs.ToState(tmp);
+                            tmp.Print();
+
+                            break;
+                        }
+                    }
+                    else {
+                        std::cout << "FLAME NOT FOUND!" << std::endl;
+                    }
+                }
+            }
+        }
+
         //check agents
+        /*
         int missing_agents = 0;
         for (int i = 0; i < bboard::AGENT_COUNT; i++) {
             bboard::AgentInfo infoTrue = trueState.agents[i];
@@ -118,6 +212,7 @@ int agent_act(char* stateJson, char* obsJson, bool jsonIsState)
                 missing_agents += 1;
             }
         }
+        
         if (missing_agents>0){
             std::cout << std::endl << "At least one Agent went missing (pos, canKick, maxBombCount, bombStrength)"<< std::endl;
             for (int i = 0; i < bboard::AGENT_COUNT; i++) {
@@ -136,7 +231,7 @@ int agent_act(char* stateJson, char* obsJson, bool jsonIsState)
             }
             std::cout << "<-- tracking" << std::endl;
         }
-        
+        */
     }
     else
     {   
