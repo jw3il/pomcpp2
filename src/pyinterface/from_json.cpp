@@ -131,7 +131,7 @@ void _agentInfoFromJSON(const nlohmann::json& pyInfo, AgentInfo& info, int agent
     //          -> pyagent adds own bomb count to obs
     info.bombCount = agentActiveBombsCount;
     info.maxBombCount = agentActiveBombsCount + pyInfo["ammo"].get<int>();
-    info.bombStrength = pyInfo["blast_strength"];
+    info.bombStrength = pyInfo["blast_strength"].get<int>() - 1;
 }
 
 void _bombFromJSON(const nlohmann::json& pyBomb, Bomb& bomb)
