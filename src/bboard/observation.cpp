@@ -622,6 +622,9 @@ void Observation::TrackStats(const Board& oldBoard)
         if (!info.statsVisible) {
             // we will count active bombs later
             info.bombCount = 0;
+            info.maxBombCount = oldInfo.maxBombCount;
+            info.bombStrength = oldInfo.bombStrength;
+            info.canKick = oldInfo.canKick;
 
             // track collected power ups
             int oldItem = oldBoard.items[info.y][info.x];
