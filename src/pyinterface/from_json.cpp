@@ -252,7 +252,28 @@ void StateFromJSON(State& state, const nlohmann::json& json)
     {
         Flame flame;
         _flameFromJSON(pyFlames[i], flame);
-        state.flames.AddElem(flame);
+
+        // filter duplicate flames
+        bool foundFlame = false;
+        for(uint k = 0; k < state.flames.count; k++)
+        {
+            Flame& existingFlame = state.flames[k];
+            if (existingFlame.position == flame.position)
+            {
+                // keep flame with higher life
+                if (flame.timeLeft > existingFlame.timeLeft)
+                {
+                    existingFlame.timeLeft = flame.timeLeft;
+                }
+
+                foundFlame = true;
+                break;
+            }
+        }
+        if (!foundFlame) 
+        {
+            state.flames.AddElem(flame);
+        }
 
         if(!IS_FLAME(state.items[flame.position.y][flame.position.x]))
         {
@@ -296,6 +317,19 @@ State StateFromJSON(const nlohmann::json& json)
     return state;
 }
 
+bool _bomb_compare_time(const Bomb& lhs, const Bomb& rhs)
+{
+    return bboard::BMB_TIME(lhs) < bboard::BMB_TIME(rhs);
+}
+
+void _sort_bombs(Board& board)
+{
+    Bomb bombs[board.bombs.count];
+    board.bombs.CopyTo(bombs);
+    std::sort(bombs, bombs + board.bombs.count, _bomb_compare_time);
+    board.bombs.CopyFrom(bombs, board.bombs.count);
+}
+
 void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agentId)
 {
     nlohmann::json pyObs = _auto_parse(json);
@@ -308,7 +342,7 @@ void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agent
     
     GameMode gameMode = _mapPyToGameMode(pyObs["game_type"].get<int>());
     obs.timeStep = pyObs["step_count"];
-
+    obs.agentID = agentId;
     obs.params = _getPythonObsParams(gameMode);
 
     // we only observe our own stats and other agents are invisible by default
@@ -401,6 +435,9 @@ void ObservationFromJSON(Observation& obs, const nlohmann::json& json, int agent
             }
         }
     }
+
+    // we expect bombs to be sorted
+    _sort_bombs(obs);
 
     obs.currentFlameTime = util::OptimizeFlameQueue(obs);
 }
