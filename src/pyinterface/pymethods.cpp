@@ -65,6 +65,7 @@ int agent_act(char* stateJson, char* obsJson, bool jsonIsState)
 
     nlohmann::json jsonState = nlohmann::json::parse(stateJson);
     nlohmann::json jsonObs = nlohmann::json::parse(obsJson);
+    PyInterface::observation = Observation();
 
     if(jsonIsState)
     {   

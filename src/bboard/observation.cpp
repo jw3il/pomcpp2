@@ -97,10 +97,14 @@ void Observation::Get(const State& state, const uint agentID, const ObservationP
                     for(int x = leftFogCount; x < rightFogBegin; x++)
                     {
                         int item = state.items[y][x];
+                        // erase the powerup information from wood and flames
                         if(IS_WOOD(item))
                         {
-                            // erase the powerup information
                             observation.items[y][x] = Item::WOOD;
+                        }
+                        else if (IS_FLAME(item))
+                        {
+                            observation.items[y][x] = CLEAR_POWFLAG(item);
                         }
                         else
                         {
@@ -519,7 +523,7 @@ void Observation::VirtualStep(State& state, bool keepAgents, bool keepBombs, int
 }
 
 /**
- * @brief Checks if there was a bomb at checkPosition in the (old) board or if an agent in newObs has kicked this bomb. If the bomb is found, returns the owner of the bomb according to the board.
+ * @brief Checks if there was a bomb at checkPosition in the (old) board or if an agent in newObs has kicked this bomb.
  * 
  * @param board the (old) board
  * @param newObs the (new) observation, one step after the board
@@ -528,9 +532,9 @@ void Observation::VirtualStep(State& state, bool keepAgents, bool keepBombs, int
  * @param checkTime the time of the bomb that we are looking for
  * @param checkRange the range of the bomb that we are looking for
  * @param recursionDepth temporary variable to avoid infinite loops
- * @return int the owner of the bomb or -1 if the bomb could not be found
+ * @return int the old index of the bomb (on the board, not the observation) or -1 if the bomb could not be found
  */
-int _backtrack_bomb_agent_id(const bboard::Board* board, const bboard::Observation* newObs, bboard::Position checkPosition, bboard::Direction checkDirection, int checkTime, int checkRange, int recursionDepth=0)
+int _backtrack_bomb_id(const bboard::Board* board, const bboard::Observation* newObs, bboard::Position checkPosition, bboard::Direction checkDirection, int checkTime, int checkRange, int recursionDepth=0)
 {
     // avoid infinite loops
     if (recursionDepth >= AGENT_COUNT || bboard::util::IsOutOfBounds(checkPosition)) {
@@ -542,10 +546,11 @@ int _backtrack_bomb_agent_id(const bboard::Board* board, const bboard::Observati
     if (stateItem == bboard::Item::BOMB)
     {
         // is this the bomb we are looking for?
-        const bboard::Bomb& candidateBomb = *board->GetBomb(checkPosition.x, checkPosition.y);
+        int candidateBombIndex = board->GetBombIndex(checkPosition.x, checkPosition.y);
+        const bboard::Bomb& candidateBomb = board->bombs[candidateBombIndex];
         // std::cout << "Checking bomb at state position " << checkPosition << std::endl;
         if (bboard::BMB_STRENGTH(candidateBomb) == checkRange && bboard::BMB_TIME(candidateBomb) == checkTime && bboard::BMB_DIR(candidateBomb) == (int)checkDirection) {
-            return bboard::BMB_ID(candidateBomb);
+            return candidateBombIndex;
         }
         else {
             return -1;
@@ -578,7 +583,7 @@ int _backtrack_bomb_agent_id(const bboard::Board* board, const bboard::Observati
 
                 // move back one field and look for the bomb
                 bboard::Position newCheckPosition = bboard::util::OriginPosition(checkPosition.x, checkPosition.y, bboard::Move(newCheckDirection));
-                int res = _backtrack_bomb_agent_id(board, newObs, newCheckPosition, newCheckDirection, checkTime, checkRange, recursionDepth + 1);
+                int res = _backtrack_bomb_id(board, newObs, newCheckPosition, newCheckDirection, checkTime, checkRange, recursionDepth + 1);
                 if (res != -1) {
                     return res;
                 }
@@ -590,6 +595,112 @@ int _backtrack_bomb_agent_id(const bboard::Board* board, const bboard::Observati
 }
 
 int trackStatsErrorCounter = 3;
+/**
+ * @brief Tries to find a bomb from newObs in the given board.
+ * 
+ * @param board the (old) board
+ * @param newObs the (new) observation, one step after the board
+ * @return int the old index of the bomb (on the board, not the observation) or -1 if the bomb could not be found
+ */
+int _backtrack_bomb_id(const bboard::Board* board, const bboard::Observation* newObs, Bomb b)
+{
+    bboard::Position bombPos = bboard::BMB_POS(b);
+    int bombMovement = bboard::BMB_DIR(b);
+
+    // check if there is a bomb at the previous position according to the bomb's movement
+    bboard::Position bombOrigin = bboard::util::OriginPosition(bombPos.x, bombPos.y, bboard::Move(bombMovement));
+    int oldOriginBombIndex = board->GetBombIndex(bombOrigin.x, bombOrigin.y);
+    
+    if (oldOriginBombIndex != -1) {
+        // simple case: we found the bomb (e.g. no or simple movement)
+        return oldOriginBombIndex;
+    }
+
+    // the bomb is not where it's supposed to be => it was kicked while moving. We have to backtrack it
+    int bombId = _backtrack_bomb_id(board, newObs, bombOrigin, bboard::Direction(bombMovement), bboard::BMB_TIME(b) + 1, bboard::BMB_STRENGTH(b));
+
+    // print warning when backtracking failed (e.g. partial observability)
+    if (bombId == -1 && trackStatsErrorCounter > 0) {
+        trackStatsErrorCounter--;
+        std::cout << "Warning: could not find owner of bomb at " << bombPos << " (previous position according to movement: " << bombOrigin 
+                << ") with the TrackStats heuristic. Maybe the board is not fully visible? This message will only be repeated " << trackStatsErrorCounter << " more times." << std::endl;
+        std::cout << "Previous board:" << std::endl;
+        board->Print();
+        std::cout << "Previous bomb positions: ";
+        for (int k = 0; k < board->bombs.count; k++) {
+            std::cout << bboard::BMB_POS(board->bombs[k]) << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "Observation:" << std::endl;
+        newObs->Print();
+    }
+
+    return bombId;
+}
+
+void _count_bomb_if_stats_invisible(AgentInfo& info)
+{
+    // only count if stats are not visible
+    if (!info.statsVisible)
+    {
+        info.bombCount++;
+        // correct max bomb count when we missed some powerup collection
+        if (info.bombCount > info.maxBombCount)
+        {
+            info.maxBombCount = info.bombCount;
+        }
+    }
+}
+
+bool _has_kicked_bomb(const bboard::Board* board, const bboard::Observation* newObs, int agentID)
+{
+    const bboard::AgentInfo& info = newObs->agents[agentID];
+    const bboard::AgentInfo& oldInfo = board->agents[agentID];
+
+    // ignore agents that are not on the board
+    if (info.dead || oldInfo.dead || !info.visible || !oldInfo.visible) {
+        return false;
+    }
+
+    // agents that don't move cannot kick bombs
+    if (info.GetPos() == oldInfo.GetPos()) {
+        return false;
+    }
+
+    Position movement = info.GetPos() - oldInfo.GetPos();
+    Position potentialKickPosition = info.GetPos() + movement;
+
+    // agent cannot kick when the bomb would now be outside of the board
+    if (bboard::util::IsOutOfBounds(potentialKickPosition)) {
+        return false;
+    }
+    
+    // agent cannot kick when there is no bomb
+    int potentialKickItem = newObs->items[potentialKickPosition.y][potentialKickPosition.x];
+    if (potentialKickItem != bboard::Item::BOMB) {
+        return false;
+    }
+
+    // backtrack bomb id (return false only upon backtracking errors)
+    bboard::Bomb* bomb = newObs->GetBomb(potentialKickPosition.x, potentialKickPosition.y);
+    if (!bomb) {
+        return false;
+    }
+    int oldBombId = _backtrack_bomb_id(board, newObs, *bomb);
+    if (oldBombId == -1) {
+        return false;
+    }
+
+    // the bomb did not change its direction, agent did not kick
+    bboard::Bomb oldBomb = board->bombs[oldBombId];
+    if (BMB_DIR(*bomb) == BMB_DIR(oldBomb)) {
+        return false;
+    }
+
+    // there is a bomb and it changed its direction => has been kicked by the agent
+    return true;
+}
+
 void Observation::TrackStats(const Board& oldBoard)
 {
     bool allStatsAreVisible = true;
@@ -618,30 +729,42 @@ void Observation::TrackStats(const Board& oldBoard)
             continue;
         }
 
-        // track unknown stats
+        // track unknown stats of agents
         if (!info.statsVisible) {
             // we will count active bombs later
             info.bombCount = 0;
+            info.maxBombCount = oldInfo.maxBombCount;
+            info.bombStrength = oldInfo.bombStrength;
+            info.canKick = oldInfo.canKick;
 
-            // track collected power ups
-            int oldItem = oldBoard.items[info.y][info.x];
-            switch (oldItem)
-            {
-            case bboard::Item::EXTRABOMB:
-                info.maxBombCount = oldInfo.maxBombCount + 1;
-                break;
+            // we can track stats of visible agents to some extent
+            if (info.visible) {
+                // track collected power ups (if powerup is visible)
+                int oldItem = oldBoard.items[info.y][info.x];
+                switch (oldItem)
+                {
+                case bboard::Item::EXTRABOMB:
+                    info.maxBombCount = oldInfo.maxBombCount + 1;
+                    break;
 
-            case bboard::Item::INCRRANGE:
-                info.bombStrength = oldInfo.bombStrength + 1;
-                break;
+                case bboard::Item::INCRRANGE:
+                    info.bombStrength = oldInfo.bombStrength + 1;
+                    break;
 
-            case bboard::Item::KICK:
-                info.canKick = true;
-                break;
-            
-            default:
-                break;
-            }   
+                case bboard::Item::KICK:
+                    info.canKick = true;
+                    break;
+                
+                default:
+                    break;
+                }
+
+                // if we see the agent kicking, then we missed a kick powerup item
+                if (!info.canKick && _has_kicked_bomb(&oldBoard, this, i))
+                {
+                    info.canKick = true;
+                } 
+            }
         }
 
         // if the agent stands above a bomb
@@ -663,49 +786,18 @@ void Observation::TrackStats(const Board& oldBoard)
         int bombOwner = bboard::BMB_ID(b);
         if (bombOwner >= 0 && bombOwner < bboard::AGENT_COUNT) {
             // bomb owner is known => count bombs
-            if (!agents[bombOwner].statsVisible)
-            {
-                agents[bombOwner].bombCount++;
-            }
+            _count_bomb_if_stats_invisible(agents[bombOwner]);
         }
         else {
-            // bomb owner is not known yet
-            bboard::Position bombPos = bboard::BMB_POS(b);
-            int bombMovement = bboard::BMB_DIR(b);
-
-            // check if there is a bomb at the previous position according to the bomb's movement
-            bboard::Position bombOrigin = bboard::util::OriginPosition(bombPos.x, bombPos.y, bboard::Move(bombMovement));
-            int oldOriginBombIndex = oldBoard.GetBombIndex(bombOrigin.x, bombOrigin.y);
-            
-            if (oldOriginBombIndex != -1) {
-                // the bomb just moved
-                bombOwner = bboard::BMB_ID(oldBoard.bombs[oldOriginBombIndex]);
-            } else {
-                // the bomb is not where it's supposed to be => it was kicked while moving. We have to backtrack it
-                bombOwner = _backtrack_bomb_agent_id(&oldBoard, this, bombOrigin, bboard::Direction(bombMovement), bboard::BMB_TIME(b) + 1, bboard::BMB_STRENGTH(b));
+            // bomb owner is not known yet, try to find it in the old board
+            int oldBombId = _backtrack_bomb_id(&oldBoard, this, b);
+            if (oldBombId != -1) {
+                bombOwner = BMB_ID(oldBoard.bombs[oldBombId]);
             }
             bool foundAgent = bombOwner >= 0 && bombOwner < bboard::AGENT_COUNT;
             if (foundAgent) {
                 bboard::SetBombID(b, bombOwner);
-                if (!agents[bombOwner].statsVisible)
-                {
-                    agents[bombOwner].bombCount++;
-                }
-            }
-            // print a limited number of warning messages in case we could not find the owner
-            if (!foundAgent && trackStatsErrorCounter > 0) {
-                trackStatsErrorCounter--;
-                std::cout << "Warning: could not find owner of bomb at " << bombPos << " (previous position according to movement: " << bombOrigin 
-                        << ") with the TrackStats heuristic. Maybe the board is not fully visible? This message will only be repeated " << trackStatsErrorCounter << " more times." << std::endl;
-                std::cout << "Previous board:" << std::endl;
-                oldBoard.Print();
-                std::cout << "Previous bomb positions: ";
-                for (int k = 0; k < oldBoard.bombs.count; k++) {
-                    std::cout << bboard::BMB_POS(oldBoard.bombs[k]) << " ";
-                }
-                std::cout << std::endl;
-                std::cout << "Observation:" << std::endl;
-                Print();
+                _count_bomb_if_stats_invisible(agents[bombOwner]);
             }
         }
     }

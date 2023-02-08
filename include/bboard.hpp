@@ -107,6 +107,10 @@ inline int WOOD_POWFLAG(int x)
 {
     return ((x) & 0b11);
 }
+inline int CLEAR_POWFLAG(int x)
+{
+    return ((x) & ~0b11);
+}
 
 /**
  * @brief The FixedQueue struct implements a fixed-size queue,
@@ -912,7 +916,7 @@ public:
     /**
      * @brief Updates agent stats and bomb ownership in this observation using given board information from the last step.
      * 
-     * Warning: Requires the board to be fully visible to work correctly.
+     * Warning: is a simple heuristic. Even in the FFA environment, it is impossible to track all stats in all cases.
      * 
      * @param oldBoard The last board holding previous state information (can be observation or state).
      */
