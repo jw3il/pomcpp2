@@ -10,6 +10,7 @@ from pommerman.envs.v0 import Pomme
 from typing import List
 import os
 from pypomcpp.cppagent import CppAgent
+import pickle
 
 FIG_WIDTH = 8
 
@@ -401,6 +402,9 @@ class EvalPlotter():
         ax1.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, -.15), fancybox=True, shadow=True, ncol=len(agent_ixs))
         fig.tight_layout()
         fig.savefig(os.path.join(self.experiment_path,"agents_alive"), bbox_inches="tight")
+    
+    def pickle_episodes(self):
+        pickle.dump(self.episodes, open(os.path.join(self.experiment_path, 'episodes.pickle'),'wb'))
 
 def _aggregate_timeseries(to_aggregate):
     """ aggregate timeseries with various by taking the mean of all non nan values

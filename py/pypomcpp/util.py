@@ -95,6 +95,7 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_pat
         print_stats(env, results, steps, episodes)
 
     # plotting
+    plotter.pickle_episodes()
     plotter.plot_agents_alive([0,1,2,3])
     plotter.plot_explored_positions(plot_agents_alive=plot_agents_alive)
     plotter.plot_explored_positions_per_agent(agent_ixs=[0,1,2,3])
