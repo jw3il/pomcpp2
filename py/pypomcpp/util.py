@@ -9,7 +9,7 @@ import numpy as np
 from pypomcpp.util_plotting import EvalPlotter
 
 
-def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_path=None, individual_plots=True, plot_agents_alive=False, log_json=False, env_type='PommeTeamCompetition-v0'):
+def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_path=None, individual_plots=True, plot_agents_alive=False, log_json=False, env_type='PommeTeamCompetition-v0', log_pickle=False):
     """
     Evaluates the given pommerman environment (already includes the agents).
 
@@ -17,10 +17,11 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_pat
     :param verbose: Whether to print verbose status information
     :param visualize: Whether to visualize the execution
     :param stop: Whether to wait for input after each step
-    :param individual_plots: create additional plots for each individual agent, defaults to False
+    :param individual_plots: create additional plots for each individual agent, defaults to True
     :param plot_agents_alive: add a dashed line showing how many agents where alive/used for the aggregated result, defaults to False
     :param log_json: option to create a json file for each game (can be used for visualization)
     :param env_type: env-type (used for json logging), only important if log_json is set
+    :param log_pickle: whether to save collected episode states as pickle file (warning: can lead to huge file sizes)
     :return: The results of the evaluation of shape (episodes, 5) where the first column [:, 0] contains the result
              of the match (tie, win, incomplete) and the remaining columns contain the individual (final) rewards.
     """
@@ -95,7 +96,9 @@ def evaluate(env: Pomme, episodes, verbose, visualize, stop=False, eval_save_pat
         print_stats(env, results, steps, episodes)
 
     # plotting
-    plotter.pickle_episodes()
+    if log_pickle:
+        plotter.pickle_episodes()
+
     plotter.plot_agents_alive([0,1,2,3])
     plotter.plot_explored_positions(plot_agents_alive=plot_agents_alive)
     plotter.plot_explored_positions_per_agent(agent_ixs=[0,1,2,3])
